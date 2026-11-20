@@ -1,0 +1,120 @@
+/**
+ * scene.js - Stage C scene signals (pure, no DOM) and the facts object for the rules engine.
+ *
+ * Until the depth model lands (task 5), the floor is approximated as the lower third of the
+ * frame (the photo rules require the floor to fill at least one third) and distances use a
+ * nominal frame width. Every derived distance is an ESTIMATE and is labelled as such in the UI.
+ */
+
+/** Nominal real-world width covered by a room photo at chest height (metres). */
+export const FRAME_WIDTH_M = 4;
+/** Top of the floor band as a fraction of image height. */
+export const FLOOR_TOP = 2 / 3;
+
+/**
+ * Lighting analysis on RGBA pixels: 4x4 luminance grid, dark share of the floor band,
+ * and glare (bright specular blobs on the floor).
+ */
+export function analyzeLighting(rgba, w, h, th) {
+  const grid = Array.from({ length: 16 }, () => ({ sum: 0, n: 0 }));
+  const floorStart = Math.floor(h * FLOOR_TOP);
+  let floorN = 0;
+  let dark = 0;
+  let bright = 0;
+  for (let y = 0; y < h; y++) {
+    const gy = Math.min(3, Math.floor((y / h) * 4));
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const lum = 0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2];
+      const cell = grid[gy * 4 + Math.min(3, Math.floor((x / w) * 4))];
+      cell.sum += lum;
+      cell.n++;
+      if (y >= floorStart) {
+        floorN++;
+        if (lum < th.dark_zone_lum) dark++;
+        if (lum > th.glare_lum) bright++;
+      }
+    }
+  }
+  const brightPct = floorN ? (bright / floorN) * 100 : 0;
+  return {
+    grid: grid.map((c) => Math.round(c.n ? c.sum / c.n : 0)),
+    dark_floor_pct: floorN ? Math.round((dark / floorN) * 100) : 0,
+    glare_pct: Math.round(brightPct * 10) / 10,
+    glare: brightPct >= 0.5,
+  };
+}
+
+/** Gap between two normalised boxes (0 when they overlap), converted to metres (estimate). */
+export function boxGapMetres(a, b) {
+  const dx = Math.max(0, Math.max(a[0], b[0]) - Math.min(a[0] + a[2], b[0] + b[2]));
+  const dy = Math.max(0, Math.max(a[1], b[1]) - Math.min(a[1] + a[3], b[1] + b[3]));
+  return Math.round(Math.hypot(dx, dy) * FRAME_WIDTH_M * 100) / 100;
+}
+
+/** Bottom edge reaches the floor band. */
+export const onFloor = (b) => b[1] + b[3] >= FLOOR_TOP + 0.05;
+
+/** On the floor and crossing the central walking corridor (middle 60% of the width, low in frame). */
+export function inWalkway(b) {
+  const bottom = b[1] + b[3];
+  const cx = b[0] + b[2] / 2;
+  return bottom >= 0.8 && cx >= 0.2 && cx <= 0.8;
+}
+
+/** Furniture is not "clutter". */
+const NOT_CLUTTER = new Set(['bed', 'sofa', 'dining table', 'chair', 'refrigerator', 'oven', 'sink', 'television', 'person', 'cabinet', 'wardrobe']);
+
+/** Share of the floor band covered by small loose objects. */
+export function clutterIndex(dets) {
+  const floorArea = 1 - FLOOR_TOP;
+  let area = 0;
+  for (const d of dets) {
+    if (NOT_CLUTTER.has(d.cls) || !onFloor(d.bbox)) continue;
+    const top = Math.max(d.bbox[1], FLOOR_TOP);
+    const hh = Math.max(0, d.bbox[1] + d.bbox[3] - top);
+    area += d.bbox[2] * hh;
+  }
+  return Math.round((area / floorArea) * 1000) / 1000;
+}
+
+/**
+ * Build the facts object consumed by rules.js.
+ * @param {{room:string, shot:object, detections:object[], lighting:object, thresholds:object,
+ *          profile?:object, checklist?:object}} input  thresholds = config thresholds.scene
+ */
+export function buildFacts({ room, shot, detections, lighting, thresholds, profile = {}, checklist = {} }) {
+  const live = detections.filter((d) => d.verdict !== 'rejected');
+  const enriched = detections.map((d) => {
+    const near = {};
+    for (const o of live) {
+      if (o.id === d.id) continue;
+      const m = boxGapMetres(d.bbox, o.bbox);
+      if (near[o.cls] === undefined || m < near[o.cls]) near[o.cls] = m;
+    }
+    return { ...d, on_floor: onFloor(d.bbox), in_walkway: inWalkway(d.bbox), height_m: null, near };
+  });
+
+  const zoneBlocked = Boolean(shot.exercise_zone) && live.some((d) => {
+    const b = d.bbox;
+    const cx = b[0] + b[2] / 2;
+    return onFloor(b) && cx > 0.22 && cx < 0.78 && d.cls !== 'person';
+  });
+
+  return {
+    room,
+    detections: enriched,
+    ctx: {
+      glare: lighting.glare,
+      dark_floor_high: lighting.dark_floor_pct >= 25,
+      dark_bed_path: room === 'bedroom' && lighting.dark_floor_pct >= 25,
+      clutter_high: clutterIndex(live) > thresholds.clutter_index_max,
+      exercise_blocked: zoneBlocked,
+      in_exercise_zone: Boolean(shot.exercise_zone),
+      in_bed_path: shot.path === 'bed_to_toilet_path',
+    },
+    checklist,
+    profile,
+    verified_controls: [],
+  };
+}

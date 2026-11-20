@@ -5,6 +5,10 @@
 import * as risk from '../js/risk.js';
 import { evaluateRules, CONTROL_ORDER, evalCondition } from '../js/rules.js';
 import { fixturesFor, emptyFacts } from './fixtures.js';
+import * as quality from '../js/quality.js';
+import * as tilt from '../js/tilt.js';
+import * as shots from '../js/shots.js';
+import * as scene from '../js/scene.js';
 
 export async function runSuite(h, loadJson) {
   const matrix = await loadJson('config/risk_matrix.json');
@@ -13,6 +17,8 @@ export async function runSuite(h, loadJson) {
   const checklists = await loadJson('config/checklists.json');
   const appCfg = await loadJson('config/app.json');
   const shotGuides = await loadJson('config/shot_guides.json');
+  const thresholds = await loadJson('config/thresholds.json');
+  const cocoMap = await loadJson('config/coco_map.json');
 
   // ---------- Risk matrix (all 25 cells) ----------
   // Independent oracle copied from the master prompt table, rows S5..S1, columns L1..L5.
@@ -219,9 +225,146 @@ export async function runSuite(h, loadJson) {
   });
   await h.test('i18n: keys referenced by shot guides exist', () => {
     const keys = new Set(Object.keys(locales.en));
-    for (const r of shotGuides.universal_rules) h.ok(keys.has(r), r);
-    for (const room of Object.values(shotGuides.rooms)) for (const s of room.required) h.ok(keys.has(s.label), s.label);
+    for (const r of shotGuides.universal_rules) {
+      const id = r.split('.').pop();
+      for (const k of [r, `hs.tut.title.${id}`, `hs.tut.do.${id}`, `hs.tut.avoid.${id}`]) h.ok(keys.has(k), k);
+    }
+    for (const room of Object.values(shotGuides.rooms)) {
+      for (const s of room.required) {
+        h.ok(keys.has(s.label), s.label);
+        h.ok(keys.has(s.include), s.include);
+        for (const gs of s.ghost) h.ok(keys.has(`hs.ghost.${gs.label}`), `ghost ${gs.label}`);
+        h.ok(s.cam && typeof s.cam.a === 'number', `${s.id} needs a camera position`);
+      }
+      for (const o of room.optional) h.ok(keys.has(o), o);
+      for (const f of room.plan.furniture) h.ok(keys.has(`hs.ghost.${f.label}`), `plan ${f.label}`);
+    }
     for (const rm of appCfg.rooms) h.ok(keys.has(`hs.room.${rm}`), rm);
+    for (const lvl of CONTROL_ORDER) h.ok(keys.has(`hs.ctl.${lvl}`), lvl);
+    for (const b of matrix.bands) h.ok(keys.has(`hs.band.${b.id}`), b.id);
+  });
+
+  // ---------- Stage A quality ----------
+  const qth = thresholds.quality;
+  const solid = (w, hh, v) => { const a = new Uint8ClampedArray(w * hh * 4); for (let i = 0; i < a.length; i += 4) { a[i] = a[i + 1] = a[i + 2] = v; a[i + 3] = 255; } return a; };
+  await h.test('quality: Rec.709 mean luminance', () => {
+    h.eq(Math.round(quality.meanLuminance(solid(4, 4, 100))), 100);
+    const red = new Uint8ClampedArray([255, 0, 0, 255]);
+    h.eq(Math.round(quality.meanLuminance(red)), 54);
+  });
+  await h.test('quality: Laplacian variance is 0 for flat, high for checkerboard', () => {
+    const w = 16; const hh = 16;
+    h.eq(quality.laplacianVariance(new Float32Array(w * hh).fill(120), w, hh), 0);
+    const chk = new Float32Array(w * hh).map((_, i) => (((i % w) + Math.floor(i / w)) % 2 ? 255 : 0));
+    h.ok(quality.laplacianVariance(chk, w, hh) > qth.blur_var_min, 'checkerboard should be sharp');
+  });
+  await h.test('quality: gate decisions and prompts', () => {
+    const good = { brightness: 120, blur_var: 400, roll: 2, pitch: -10, floor_pct: null };
+    h.ok(quality.evaluateQuality(good, qth).ready);
+    h.eq(quality.evaluateQuality({ ...good, brightness: 40 }, qth).prompts[0], 'hs.q.too_dark');
+    h.eq(quality.evaluateQuality({ ...good, brightness: 240 }, qth).prompts[0], 'hs.q.too_bright');
+    h.eq(quality.evaluateQuality({ ...good, blur_var: 20 }, qth).lights.steady, 'bad');
+    h.eq(quality.evaluateQuality({ ...good, roll: 12 }, qth).prompts[0], 'hs.q.tilt_roll');
+    h.eq(quality.evaluateQuality({ ...good, pitch: 20 }, qth).lights.floor, 'bad');
+    h.eq(quality.evaluateQuality({ ...good, pitch: -40 }, qth).prompts[0], 'hs.q.tilt_up');
+    h.ok(!quality.evaluateQuality({ ...good, people: true }, qth).ready, 'people block');
+  });
+  await h.test('quality: missing sensors are unknown and do not block (desktop / upload)', () => {
+    const r = quality.evaluateQuality({ brightness: 120, blur_var: 400, roll: null, pitch: null, floor_pct: null }, qth);
+    h.eq(r.lights.floor, 'unknown');
+    h.ok(r.ready);
+  });
+  await h.test('quality: shutter arms only after 2 s of continuous green', () => {
+    const tr = quality.createReadyTracker(qth.hold_still_ms);
+    h.ok(!tr.update(true, 0).armed);
+    h.ok(!tr.update(true, 1999).armed);
+    h.ok(tr.update(true, 2000).armed);
+    h.ok(!tr.update(false, 2100).armed, 'reset on red');
+    h.ok(!tr.update(true, 2200).armed, 'timer restarts');
+  });
+
+  // ---------- Tilt ----------
+  await h.test('tilt: upright portrait is level, looking at the horizon', () => {
+    const r = tilt.tiltFromEuler(90, 0, 0);
+    h.ok(Math.abs(r.pitch) < 0.5, `pitch ${r.pitch}`);
+    h.ok(Math.abs(r.roll) < 0.5, `roll ${r.roll}`);
+  });
+  await h.test('tilt: tipping the top away looks down (negative pitch)', () => {
+    h.ok(tilt.tiltFromEuler(70, 0, 0).pitch < -15);
+    h.ok(tilt.tiltFromEuler(110, 0, 0).pitch > 15);
+  });
+  await h.test('tilt: sideways lean shows as roll; landscape upright is level', () => {
+    // Upright portrait rolled 15 deg about the screen normal: gravity (sin15, -cos15, 0) = beta 75, gamma 90.
+    const rolled = tilt.tiltFromEuler(75, 90, 0);
+    h.ok(Math.abs(Math.abs(rolled.roll) - 15) < 0.5 && Math.abs(rolled.pitch) < 0.5, JSON.stringify(rolled));
+    const land = tilt.tiltFromEuler(0, -90, 90);
+    h.ok(Math.abs(land.roll) < 1 && Math.abs(land.pitch) < 1, JSON.stringify(land));
+    h.eq(tilt.tiltFromEuler(null, 0, 0), null);
+  });
+
+  // ---------- Shots ----------
+  await h.test('shots: progress, next required and bulk upload assignment', () => {
+    const taken = new Set(['bedroom_door']);
+    h.eq(shots.roomProgress(shotGuides, 'bedroom', taken), { done: 1, total: 3 });
+    h.eq(shots.nextRequired(shotGuides, 'bedroom', taken).id, 'bedroom_bedside');
+    const plan = shots.assignUploads(shotGuides, 'bedroom', taken, ['a', 'b', 'c']);
+    h.eq(plan.map((p) => p.shotId), ['bedroom_bedside', 'bedroom_corner', 'bedroom_opt1']);
+    h.eq(shots.assignUploads(shotGuides, 'dining', new Set(), Array(20).fill('x')).length, 2 + shotGuides.rooms.dining.optional.length);
+  });
+
+  // ---------- Scene ----------
+  const sth = thresholds.scene;
+  await h.test('scene: lighting detects a dark floor and floor glare', () => {
+    const w = 30; const hh = 30;
+    const dark = solid(w, hh, 20);
+    h.eq(scene.analyzeLighting(dark, w, hh, sth).dark_floor_pct, 100);
+    const lit = solid(w, hh, 150);
+    for (let y = 25; y < 27; y++) for (let x = 10; x < 14; x++) { const i = (y * w + x) * 4; lit[i] = lit[i + 1] = lit[i + 2] = 255; }
+    const r = scene.analyzeLighting(lit, w, hh, sth);
+    h.eq(r.dark_floor_pct, 0);
+    h.ok(r.glare, 'glare expected');
+    h.eq(r.grid.length, 16);
+  });
+  await h.test('scene: floor, walkway and distance estimates', () => {
+    h.ok(scene.onFloor([0.4, 0.6, 0.2, 0.3]));
+    h.ok(!scene.onFloor([0.4, 0.1, 0.2, 0.3]));
+    h.ok(scene.inWalkway([0.4, 0.7, 0.2, 0.25]));
+    h.ok(!scene.inWalkway([0.0, 0.7, 0.1, 0.25]), 'edge of frame is not the walkway');
+    h.eq(scene.boxGapMetres([0, 0, 0.2, 0.2], [0.1, 0.1, 0.2, 0.2]), 0);
+    h.eq(scene.boxGapMetres([0, 0, 0.1, 0.1], [0.35, 0, 0.1, 0.1]), 1);
+  });
+  await h.test('scene + rules: bag in the walkway fires TRIP-SHOES-01 end to end', () => {
+    const facts = scene.buildFacts({
+      room: 'living', shot: { id: 'living_entrance' }, thresholds: sth,
+      lighting: { dark_floor_pct: 5, glare: false },
+      detections: [{ id: 'd0', cls: 'bag on floor', conf: 0.8, bbox: [0.4, 0.7, 0.15, 0.2], verdict: null }],
+    });
+    h.ok(evaluateRules(facts, ruleFile, matrix).some((x) => x.rule_id === 'TRIP-SHOES-01'));
+  });
+  await h.test('scene + rules: dark floor fires LIGHT-DARK-01; exercise zone object blocks the zone', () => {
+    const dark = scene.buildFacts({ room: 'kitchen', shot: { id: 'kitchen_entrance' }, thresholds: sth, lighting: { dark_floor_pct: 40, glare: false }, detections: [] });
+    h.ok(evaluateRules(dark, ruleFile, matrix).some((x) => x.rule_id === 'LIGHT-DARK-01'));
+    const zone = scene.buildFacts({
+      room: 'living', shot: { id: 'living_exercise', exercise_zone: true }, thresholds: sth, lighting: { dark_floor_pct: 0, glare: false },
+      detections: [{ id: 'd0', cls: 'chair', conf: 0.9, bbox: [0.45, 0.6, 0.1, 0.3], verdict: null }],
+    });
+    const hz = evaluateRules(zone, ruleFile, matrix).find((x) => x.rule_id === 'EXERCISE-ZONE-01');
+    h.ok(hz, 'zone hazard expected');
+    h.eq(hz.zone, 'exercise_zone');
+  });
+  await h.test('scene: rejected detections do not count toward proximity', () => {
+    const facts = scene.buildFacts({
+      room: 'kitchen', shot: { id: 'kitchen_sink' }, thresholds: sth, lighting: { dark_floor_pct: 0, glare: false },
+      detections: [
+        { id: 'a', cls: 'toaster', conf: 0.9, bbox: [0.3, 0.3, 0.1, 0.1], verdict: null },
+        { id: 'b', cls: 'sink', conf: 0.9, bbox: [0.42, 0.3, 0.1, 0.1], verdict: 'rejected' },
+      ],
+    });
+    h.ok(!evaluateRules(facts, ruleFile, matrix).some((x) => x.rule_id === 'ELEC-WET-02'));
+  });
+  await h.test('coco map: every mapped class exists in the hazard vocabulary', () => {
+    const vocabSet = new Set(Object.values(vocab.groups).flat());
+    for (const [coco, cls] of Object.entries(cocoMap.map)) h.ok(vocabSet.has(cls), `${coco} -> ${cls}`);
   });
   await h.test('i18n: Flutter home_scanning.* keys are preserved', () => {
     for (const k of ['app_bar_title', 'intro_description', 'start_test', 'camera_init_failed', 'error_generic', 'home_safety_title',

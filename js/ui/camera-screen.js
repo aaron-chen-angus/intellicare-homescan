@@ -1,101 +1,96 @@
 /**
  * camera-screen.js - live capture with the Stage A quality gate.
  *
- * States: starting -> live -> review (frozen frame) -> [use | retake | download].
- * An error state (denied / no camera / failure) offers Retry and gallery upload.
- * Portrait: preview on top, controls below. Landscape: preview left, control rail right
- * (layout.css). Rotating the device never restarts the stream.
+ * States: starting -> live -> review (frozen frame) -> use (store + analyse) | retake | download.
+ * Error state (denied / no camera / failure) offers Retry and gallery upload, so laptops
+ * without a camera can still complete every shot. Rotation never restarts the stream.
  */
-import { h, announce } from './components.js';
+import { h, announce, hud, toast } from './components.js';
 import { buildGhost } from './ghost.js';
 import { t } from '../i18n.js';
-import { saveShot, capturedIds } from '../state.js';
-import { findShot, nextRequired } from '../shots.js';
-import { startCamera, stopCamera, captureFrame, fileToCanvas, canvasToBlob, downloadBlob } from '../camera.js';
-import { createQualityMonitor, createReadyTracker, evaluateQuality, measureSource } from '../quality.js';
+import { findShot } from '../shots.js';
+import { startCamera, stopCamera, captureFrame, canvasToBlob, downloadBlob } from '../camera.js';
+import { createQualityMonitor, createReadyTracker } from '../quality.js';
 import { startTilt } from '../tilt.js';
+import { storeShot, ingestFile } from '../ingest.js';
 
-const LIGHT_ICON = { ok: 'OK', bad: 'X', unknown: '?' };
-const LIGHT_CLASS = { ok: 'LOW', bad: 'EXTREME', unknown: 'MEDIUM' };
+const ICON = { ok: '\u2713', bad: '\u2715', unknown: '\u2026' };
 
-/** @returns {{title:string, node:HTMLElement, cleanup:()=>void}|null} null when the shot is unknown */
 export function cameraScreen(ctx, roomId, shotId) {
-  const guides = ctx.config.guides;
-  const shot = findShot(guides, roomId, shotId);
+  const shot = findShot(ctx.config.guides, roomId, shotId);
   if (!shot) return null;
   const th = ctx.config.thresholds.quality;
-  const shotTitle = shot.label ? t(shot.label) : shot.text;
+  const shotTitle = t(shot.label);
 
-  // ---- state ----
-  let mode = 'starting'; // starting | live | review | error
+  let mode = 'starting'; // starting | live | review | error | saving
   let streamActive = false;
   let tilt = { roll: null, pitch: null };
-  let last = null; // { metrics, result }
+  let last = null;
   let armed = false;
-  let captured = null; // { canvas, source, quality }
+  let holdProgress = 0;
+  let captured = null;
   const tracker = createReadyTracker(th.hold_still_ms);
 
   // ---- elements ----
-  const video = h('video', { playsinline: true, autoplay: true, 'aria-label': t('home_scanning.app_bar_title') });
+  const video = h('video', { playsinline: true, autoplay: true, muted: true, 'aria-label': shotTitle });
   video.muted = true;
-  const ghost = buildGhost(shot.ghost);
   const bubble = h('span', { class: 'bubble' });
-  const levelText = h('span', { class: 'level-text' }, '--');
+  const levelText = h('span', {}, '--');
   const level = h('div', { class: 'level', 'aria-hidden': 'true' }, h('div', { class: 'level-bar' }, h('span', { class: 'level-ok' }), bubble), levelText);
-  const overlayMsg = h('div', { class: 'preview-msg', role: 'status' });
-  const preview = h('div', { class: 'preview', style: '--ar:1.7778' }, video, ghost, level, overlayMsg);
+  const overlayMsg = h('div', { class: 'preview-msg', role: 'status' }, t('home_scanning.initializing_camera'));
+  const preview = h('div', { class: 'preview' }, video, buildGhost(shot.ghost), level, overlayMsg);
   const lights = h('div', { class: 'lights', role: 'group', 'aria-label': 'READY' });
   const prompt = h('p', { class: 'prompt', role: 'status', 'aria-live': 'polite' });
-  const hint = h('p', { class: 'muted' }, t('hs.cam.rotate'));
-  const status = h('p', { class: 'muted', role: 'status', 'aria-live': 'polite' });
-  const progress = h('div', { class: 'bar', 'aria-hidden': 'true' }, h('span', { style: 'width:0%' }));
-  const shutter = h('button', { class: 'btn shutter', 'aria-disabled': 'true', onclick: () => { if (armed) capture(false); } }, t('hs.cam.shutter'));
-  const anyway = h('button', { class: 'btn ghost', onclick: () => capture(true) }, t('hs.cam.take_anyway'));
-  const fileInput = h('input', { type: 'file', accept: 'image/*', class: 'sr-only', tabindex: '-1', onchange: onFile });
-  const upload = h('button', { class: 'btn secondary', onclick: () => fileInput.click() }, t('hs.cam.upload'));
+  const meter = h('div', { class: 'meter', 'aria-hidden': 'true' }, h('span', { style: 'width:0%' }));
+  const hint = h('p', { class: 'muted' }, '\u21BB ' + t('hs.cam.rotate'));
+  const status = h('p', { class: 'status', role: 'status', 'aria-live': 'polite' });
+  const shutter = h('button', { class: 'btn shutter', 'aria-disabled': 'true', onclick: () => { if (armed) capture(false); } }, '\uD83D\uDCF7 ' + t('hs.cam.shutter'));
+  const anyway = h('button', { class: 'btn soft', onclick: () => capture(true) }, t('hs.cam.take_anyway'));
+  const fileInput = h('input', { type: 'file', accept: 'image/*', class: 'sr-only', tabindex: '-1', 'aria-hidden': 'true', onchange: onFile });
+  const upload = h('button', { class: 'btn soft', onclick: () => fileInput.click() }, '\uD83D\uDDBC ' + t('hs.cam.upload'));
   const retry = h('button', { class: 'btn', onclick: () => start() }, t('home_scanning.retry'));
-  const useBtn = h('button', { class: 'btn', onclick: usePhoto }, t('hs.cam.use'));
-  const retakeBtn = h('button', { class: 'btn ghost', onclick: retake }, t('home_scanning.retake'));
-  const downloadBtn = h('button', { class: 'btn secondary', onclick: download }, t('home_scanning.download'));
-  const liveControls = h('div', { class: 'controls-group' }, lights, prompt, progress, shutter, anyway, hint);
-  const reviewControls = h('div', { class: 'controls-group' }, useBtn, retakeBtn, downloadBtn);
+  const useBtn = h('button', { class: 'btn mint big', onclick: usePhoto }, '\u2713 ' + t('hs.cam.use'));
+  const retakeBtn = h('button', { class: 'btn soft', onclick: retake }, t('home_scanning.retake'));
+  const downloadBtn = h('button', { class: 'btn soft', onclick: download }, '\u2B07 ' + t('home_scanning.download'));
+
+  const liveControls = h('div', { class: 'controls-group' }, lights, prompt, meter, shutter, anyway, hint);
+  const reviewControls = h('div', { class: 'controls-group' }, h('p', { class: 'muted' }, t('hs.cam.review')), useBtn, retakeBtn, downloadBtn);
   const errorControls = h('div', { class: 'controls-group' }, retry);
-  const controls = h('div', { class: 'controls' },
-    h('p', { class: 'pixel shot-title' }, shotTitle),
+  const controls = h('aside', { class: 'controls' },
+    h('div', {}, h('span', { class: 'eyebrow' }, t('hs.room.' + roomId)), h('p', { class: 'shot-title' }, shotTitle),
+      shot.include ? h('p', { class: 'muted' }, t('hs.must_include') + ': ' + t(shot.include)) : null),
     liveControls, reviewControls, errorControls, upload, fileInput, status);
 
-  const back = h('button', { class: 'btn ghost', onclick: () => ctx.go('/room/' + roomId), 'aria-label': t('hs.back') }, '< ' + t('hs.back'));
-  const node = h('div', { class: 'screen' },
-    h('header', { class: 'topbar' }, back, h('h1', { tabindex: '-1' }, t('hs.room.' + roomId))),
-    h('main', { id: 'main', class: 'camera-layout' }, h('div', { class: 'preview-pane' }, preview), controls));
+  const node = h('div', { class: 'stage' },
+    hud(ctx, { back: '/room/' + roomId }),
+    h('main', { id: 'main', class: 'camera-layout' },
+      h('h1', { class: 'sr-only', tabindex: '-1' }, shotTitle),
+      h('div', { class: 'preview-pane' }, preview), controls));
 
   // ---- rendering ----
-  function show(el, on) { el.hidden = !on; }
-
   function render() {
-    show(liveControls, mode === 'live' || mode === 'starting');
-    show(reviewControls, mode === 'review');
-    show(errorControls, mode === 'error');
-    show(level, mode === 'live');
-    show(upload, mode !== 'review');
-    overlayMsg.hidden = mode !== 'starting' && mode !== 'error';
+    liveControls.hidden = !(mode === 'live' || mode === 'starting');
+    reviewControls.hidden = mode !== 'review';
+    errorControls.hidden = mode !== 'error';
+    level.hidden = mode !== 'live' || tilt.roll === null;
+    upload.hidden = mode === 'review' || mode === 'saving';
+    overlayMsg.hidden = !(mode === 'starting' || mode === 'error' || mode === 'saving');
+    useBtn.disabled = mode === 'saving';
     renderLights();
   }
 
   function renderLights() {
     const l = last ? last.result.lights : { light: 'unknown', steady: 'unknown', floor: 'unknown' };
-    const mk = (name, state) => h('span', { class: 'chip ' + LIGHT_CLASS[state], 'data-state': state },
-      h('span', { 'aria-hidden': 'true' }, LIGHT_ICON[state]), t('hs.cam.light_' + name));
+    const mk = (name, state) => h('span', { class: 'chip ' + state }, h('span', { 'aria-hidden': 'true' }, ICON[state]), t('hs.cam.light_' + name));
     lights.replaceChildren(mk('light', l.light), mk('steady', l.steady), mk('floor', l.floor));
     shutter.classList.toggle('ready', armed);
     shutter.setAttribute('aria-disabled', armed ? 'false' : 'true');
     anyway.hidden = armed || mode !== 'live';
-    progress.firstChild.style.width = `${Math.round((tracker.progress || 0) * 100)}%`;
+    meter.firstChild.style.width = `${Math.round(holdProgress * 100)}%`;
     const first = last && last.result.prompts[0];
     prompt.textContent = first ? t(first) : last && last.result.ready ? (armed ? t('hs.q.all_good') : t('hs.q.hold')) : '';
   }
 
-  /** Match the preview box to the stream's real aspect ratio (changes on rotation). */
   function syncAspect() {
     if (video.videoWidth && video.videoHeight) preview.style.setProperty('--ar', (video.videoWidth / video.videoHeight).toFixed(4));
   }
@@ -110,21 +105,19 @@ export function cameraScreen(ctx, roomId, shotId) {
   const tiltListener = startTilt((v) => {
     tilt = v;
     if (typeof v.roll === 'number') {
-      const pct = Math.max(-1, Math.min(1, v.roll / 15)) * 50;
-      bubble.style.left = `${50 + pct}%`;
+      bubble.style.left = `${50 + Math.max(-1, Math.min(1, v.roll / 15)) * 50}%`;
       levelText.textContent = `${v.roll.toFixed(0)}\u00B0`;
       level.classList.toggle('level-bad', Math.abs(v.roll) > th.roll_max_deg);
+      if (mode === 'live') level.hidden = false;
     }
   });
   const monitor = createQualityMonitor({
-    video,
-    thresholds: th,
-    getTilt: () => tilt,
+    video, thresholds: th, getTilt: () => tilt,
     onUpdate: (u) => {
       last = u;
       const tr = tracker.update(u.result.ready, performance.now());
       armed = tr.armed;
-      tracker.progress = tr.progress;
+      holdProgress = tr.progress;
       renderLights();
     },
   });
@@ -156,42 +149,38 @@ export function cameraScreen(ctx, roomId, shotId) {
     const m = last ? last.metrics : {};
     const canvas = captureFrame(video);
     video.pause(); // freeze the preview while reviewing
+    monitor.stop();
     captured = {
       canvas,
-      source: 'camera',
-      quality: { brightness: m.brightness ?? null, blur_var: m.blur_var ?? null, roll: tilt.roll, pitch: tilt.pitch, floor_pct: m.floor_pct ?? null, override },
+      quality: {
+        brightness: m.brightness != null ? Math.round(m.brightness) : null,
+        blur_var: m.blur_var != null ? Math.round(m.blur_var) : null,
+        roll: tilt.roll, pitch: tilt.pitch, floor_pct: null, override,
+      },
     };
-    enterReview();
+    canvas.className = 'frozen';
+    preview.append(canvas);
+    mode = 'review';
+    render();
+    announce(shotTitle + ': ' + t('hs.cam.photo_taken'));
   }
 
   async function onFile() {
     const file = fileInput.files && fileInput.files[0];
     fileInput.value = '';
     if (!file) return;
-    try {
-      const canvas = await fileToCanvas(file);
-      const m = measureSource(canvas, { w: canvas.width, h: canvas.height }, th.blur_frame_px);
-      const result = evaluateQuality({ ...m, roll: null, pitch: null, floor_pct: null, people: false }, th);
-      if (streamActive) video.pause();
-      monitor.stop();
-      captured = {
-        canvas, source: 'upload',
-        quality: { brightness: m.brightness, blur_var: m.blur_var, roll: null, pitch: null, floor_pct: null, override: !result.ready },
-      };
-      enterReview();
-    } catch (e) {
-      status.textContent = t('home_scanning.error_generic', { error: e.message });
-    }
-  }
-
-  function enterReview() {
-    mode = 'review';
-    monitor.stop();
-    captured.canvas.className = 'frozen';
-    preview.append(captured.canvas);
-    status.textContent = '';
+    mode = 'saving';
+    overlayMsg.textContent = t('hs.cam.saving');
     render();
-    announce(shotTitle + ': ' + t('hs.cam.photo_taken'));
+    try {
+      await ingestFile(file, roomId, shot, th);
+      toast(t('hs.cam.shot_done'));
+      ctx.go(`/analyze/${roomId}/${shot.id}`);
+    } catch (e) {
+      mode = streamActive ? 'live' : 'error';
+      status.textContent = t('home_scanning.error_generic', { error: e.message });
+      render();
+    }
   }
 
   function retake() {
@@ -199,15 +188,13 @@ export function cameraScreen(ctx, roomId, shotId) {
     captured = null;
     tracker.reset();
     armed = false;
-    tracker.progress = 0;
+    holdProgress = 0;
     status.textContent = '';
     if (streamActive) {
       video.play();
       mode = 'live';
       monitor.start();
-    } else {
-      mode = 'error';
-    }
+    } else mode = 'error';
     render();
   }
 
@@ -221,31 +208,23 @@ export function cameraScreen(ctx, roomId, shotId) {
   }
 
   async function usePhoto() {
+    if (!captured || mode === 'saving') return;
+    mode = 'saving';
+    overlayMsg.textContent = t('hs.cam.saving');
+    render();
     try {
-      const { canvas, quality } = captured;
-      const blob = await canvasToBlob(canvas);
-      saveShot({
-        shot_id: shot.id,
-        room: roomId,
-        shot_type: shot.id,
-        required: shot.required,
-        orientation: canvas.width >= canvas.height ? 'landscape' : 'portrait',
-        captured_at: new Date().toISOString(),
-        quality,
-        source: captured.source,
-        inference_ms: null,
-        image_ref: null,
-        blob,
-      });
-      announce(t('hs.cam.shot_done'));
-      const next = shot.required ? nextRequired(guides, roomId, capturedIds(roomId)) : null;
-      ctx.go(next ? `/camera/${roomId}/${next.id}` : '/room/' + roomId);
+      await storeShot({ canvas: captured.canvas, room: roomId, shot, quality: captured.quality, source: 'camera' });
+      toast(t('hs.cam.shot_done'));
+      ctx.go(`/analyze/${roomId}/${shot.id}`);
     } catch (e) {
+      mode = 'review';
       status.textContent = t('home_scanning.error_generic', { error: e.message });
+      render();
     }
   }
 
-  setTimeout(start, 0); // after the node is mounted
+  render();
+  setTimeout(start, 0);
 
   return {
     title: shotTitle,

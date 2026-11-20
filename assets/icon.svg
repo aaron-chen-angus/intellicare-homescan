@@ -1,18 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 24 24" shape-rendering="crispEdges">
-  <title>Safi, the intelliCARE Home Scan mascot</title>
-  <rect x="-4" y="-4" width="24" height="24" fill="#14142b"/>
-  <rect x="7" y="0" width="2" height="1" fill="#ff5555"/>
-  <rect x="5" y="1" width="6" height="1" fill="#ffd23f"/>
-  <rect x="4" y="2" width="8" height="1" fill="#ffd23f"/>
-  <rect x="3" y="3" width="10" height="1" fill="#ff9142"/>
-  <rect x="4" y="4" width="8" height="5" fill="#f8f8ff"/>
-  <rect x="6" y="5" width="1" height="1" fill="#0b0b14"/>
-  <rect x="9" y="5" width="1" height="1" fill="#0b0b14"/>
-  <rect x="6" y="7" width="4" height="1" fill="#0b0b14"/>
-  <rect x="5" y="9" width="6" height="5" fill="#6ec1ff"/>
-  <rect x="7" y="10" width="2" height="1" fill="#ffd23f"/>
-  <rect x="3" y="9" width="2" height="4" fill="#b8b8d0"/>
-  <rect x="11" y="9" width="2" height="4" fill="#b8b8d0"/>
-  <rect x="5" y="14" width="2" height="2" fill="#4b4b8f"/>
-  <rect x="9" y="14" width="2" height="2" fill="#4b4b8f"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>intelliCARE Home Scan</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4d9bff"/><stop offset="1" stop-color="#154fa8"/></linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a7a"/><stop offset="1" stop-color="#d9583f"/></linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <polygon points="20,62 64,26 108,62" fill="url(#roof)"/>
+  <rect x="30" y="60" width="68" height="44" rx="4" fill="#fff8ee"/>
+  <rect x="56" y="76" width="16" height="28" rx="3" fill="#12a37f"/>
+  <circle cx="88" cy="92" r="20" fill="#ffffff" stroke="#12a37f" stroke-width="6"/>
+  <path d="M80 92 l6 6 l11 -12" stroke="#12a37f" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

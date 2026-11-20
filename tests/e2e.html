@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>intelliCARE Home Scan - end-to-end check</title>
+  <style>body{font:16px system-ui;margin:1rem} .ok{color:#0b5a32} .bad{color:#8a1117} iframe{width:1200px;height:900px;border:1px solid #ccc}</style>
+</head>
+<body>
+  <h1>End-to-end: photo -> saved to shot -> analysis -> results persisted</h1>
+  <ol id="log"></ol>
+  <div id="summary">Running...</div>
+  <iframe id="app" title="app under test"></iframe>
+  <script type="module">
+    // Simulates "Use photo" / "Upload" by storing a generated room picture for bedroom_door,
+    // then opens the real app on the analysis route and waits for results to render.
+    import { initStore, capturedIds, clearAll } from '../js/state.js';
+    import { storeShot } from '../js/ingest.js';
+    import * as db from '../js/db.js';
+
+    const log = (ok, msg) => { const li = document.createElement('li'); li.className = ok ? 'ok' : 'bad'; li.textContent = (ok ? 'PASS ' : 'FAIL ') + msg; document.getElementById('log').append(li); return ok; };
+    const results = [];
+    const check = (ok, msg) => results.push(log(ok, msg));
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    // A simple dim room picture: wall, dark floor, a "rug".
+    const c = document.createElement('canvas'); c.width = 960; c.height = 540;
+    const g = c.getContext('2d');
+    g.fillStyle = '#c9c2b8'; g.fillRect(0, 0, 960, 360);
+    g.fillStyle = '#1c1a18'; g.fillRect(0, 360, 960, 180);
+    g.fillStyle = '#7a3b2e'; g.fillRect(380, 430, 220, 70);
+
+    await initStore();
+    await clearAll();
+    const shot = { id: 'bedroom_door', required: true };
+    await storeShot({ canvas: c, room: 'bedroom', shot, quality: { override: false }, source: 'upload' });
+    check(capturedIds('bedroom').has('bedroom_door'), 'photo is assigned to the "From the doorway" shot');
+    const stored = await db.getAll('shots');
+    check(stored.some((s) => s.shot_id === 'bedroom_door' && s.blob && s.blob.size > 1000), 'photo is persisted in IndexedDB (survives reload)');
+
+    const frame = document.getElementById('app');
+    frame.src = '../index.html#/analyze/bedroom/bedroom_door';
+    let text = '';
+    const t0 = performance.now();
+    while (performance.now() - t0 < 90000) {
+      await sleep(1000);
+      try { text = frame.contentDocument.body.innerText; } catch { text = ''; }
+      if (/hazards to review|No hazards found|could not load/.test(text)) break;
+    }
+    check(/hazards to review|No hazards found/.test(text), 'analysis finished and rendered results (' + Math.round((performance.now() - t0) / 1000) + ' s)');
+    check(/Dark floor: \d+%/.test(text), 'lighting analysis shown');
+    check(/night-time fall|Fall in dim areas/i.test(text), 'dark-floor rules fired (LIGHT-DARK-01 / FALL-BED-01)');
+    check(/coco-ssd/.test(text), 'on-device detector ran (model name shown)');
+    const analyses = await db.getAll('analyses');
+    check(analyses.some((a) => a.shot_id === 'bedroom_door' && a.hazards.length > 0), 'analysis result persisted in IndexedDB');
+
+    frame.src = '../index.html#/room/bedroom';
+    await sleep(3000);
+    const roomText = frame.contentDocument.body.innerText;
+    check(/1 of 3 photos/.test(roomText) || /33%/.test(roomText), 'room screen shows the shot as done (1 of 3)');
+    check(/View results/.test(roomText), 'room screen offers View results for the analysed shot');
+
+    const failed = results.filter((x) => !x).length;
+    document.getElementById('summary').textContent = `${results.length - failed} / ${results.length} passed, ${failed} failed`;
+    // When served by tools/serve.ps1 -ReportFile, hand the report back to the terminal.
+    const report = [...document.querySelectorAll('#log li')].map((li) => li.textContent).join('\n') + '\n' + document.getElementById('summary').textContent;
+    fetch('/__report', { method: 'POST', body: report }).catch(() => {});
+  </script>
+</body>
+</html>

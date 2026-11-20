@@ -1,48 +1,61 @@
 /**
  * app.js - boot, config loading and hash router.
- * Routes: / (title), /map, /room/<id>, /help, /settings.
+ * Routes: /  /map  /room/<id>  /camera/<room>/<shot>  /analyze/<room>/<shot>  /help  /settings
  * Hash routing keeps deep links working on GitHub Pages without server rewrites.
  */
 import { setLanguage, t } from './i18n.js';
-import { getSettings, applyVisualSettings } from './state.js';
+import { getSettings, applyVisualSettings, initStore } from './state.js';
 import { h, announce } from './ui/components.js';
 import * as screens from './ui/screens.js';
 import { cameraScreen } from './ui/camera-screen.js';
+import { analysisScreen } from './ui/analysis-screen.js';
 
 const root = document.getElementById('app');
 const config = {};
+const configCache = {};
 let cleanup = null; // teardown hook of the mounted screen
 
-/** Fetch a config JSON relative to this module (works under /<repo>/ on GitHub Pages). */
-async function loadConfig(name) {
-  const res = await fetch(new URL(`../config/${name}.json`, import.meta.url));
-  if (!res.ok) throw new Error(`Cannot load config/${name}.json (${res.status})`);
-  return res.json();
+/** Fetch a config JSON relative to this module (works under /<repo>/ on GitHub Pages). Cached. */
+function loadConfig(name) {
+  if (!configCache[name]) {
+    configCache[name] = fetch(new URL(`../config/${name}.json`, import.meta.url)).then((res) => {
+      if (!res.ok) throw new Error(`Cannot load config/${name}.json (${res.status})`);
+      return res.json();
+    });
+    configCache[name].catch(() => { delete configCache[name]; });
+  }
+  return configCache[name];
 }
 
 const ctx = {
   config,
-  go: (path) => { location.hash = '#' + path; },
+  loadConfig,
+  go: (path) => {
+    if (location.hash === '#' + path) render();
+    else location.hash = '#' + path;
+  },
   back: () => history.back(),
   rerender: () => render(),
 };
 
-/** Resolve the current hash to a screen and mount it. */
-function render() {
-  const path = location.hash.replace(/^#/, '') || '/';
-  const [, first, arg] = path.split('/');
-  let screen;
-  if (path === '/') screen = screens.title(ctx);
-  else if (first === 'map') screen = screens.map(ctx);
-  else if (first === 'room' && config.app.rooms.includes(arg)) screen = screens.room(ctx, arg);
-  else if (first === 'camera' && config.app.rooms.includes(arg)) {
-    screen = cameraScreen(ctx, arg, path.split('/')[3]) || screens.notFound(ctx);
-  } else if (first === 'help') screen = screens.help(ctx);
-  else if (first === 'settings') screen = screens.settings(ctx);
-  else screen = screens.notFound(ctx);
+function resolve(path) {
+  const parts = path.split('/');
+  const [, first, a, b] = parts;
+  const rooms = config.app.rooms;
+  if (path === '/' || path === '') return screens.title(ctx);
+  if (first === 'map') return screens.map(ctx);
+  if (first === 'room' && rooms.includes(a)) return screens.room(ctx, a);
+  if (first === 'camera' && rooms.includes(a)) return cameraScreen(ctx, a, b);
+  if (first === 'analyze' && rooms.includes(a)) return analysisScreen(ctx, a, b) || screens.room(ctx, a);
+  if (first === 'help') return screens.help(ctx);
+  if (first === 'settings') return screens.settings(ctx);
+  return null;
+}
 
-  // Release camera/sensors of the screen we are leaving.
-  if (cleanup) cleanup();
+function render() {
+  const path = (location.hash.replace(/^#/, '') || '/').split('?')[0];
+  const screen = resolve(path) || screens.notFound(ctx);
+  if (cleanup) cleanup(); // release camera/sensors of the screen we are leaving
   cleanup = screen.cleanup || null;
   root.replaceChildren(screen.node);
   document.title = `${screen.title} | intelliCARE Home Scan`;
@@ -58,18 +71,16 @@ async function boot() {
       loadConfig('app'), loadConfig('shot_guides'), loadConfig('risk_matrix'), loadConfig('thresholds'),
     ]);
     applyVisualSettings();
-    // The skip link moves focus instead of changing the hash (the hash is the router's).
     document.getElementById('skip').addEventListener('click', (e) => {
       e.preventDefault();
       const main = document.getElementById('main');
       if (main) { main.setAttribute('tabindex', '-1'); main.focus(); }
     });
-    await setLanguage(getSettings().lang);
+    await Promise.all([setLanguage(getSettings().lang), initStore()]);
     window.addEventListener('hashchange', render);
     render();
   } catch (e) {
-    // Config or locale could not load (offline first visit, bad deploy): show a retry.
-    root.replaceChildren(h('main', { class: 'screen center' },
+    root.replaceChildren(h('main', { class: 'stage center' },
       h('h1', {}, 'intelliCARE Home Scan'),
       h('p', {}, t('home_scanning.error_generic', { error: e.message })),
       h('button', { class: 'btn', onclick: () => location.reload() }, t('home_scanning.retry'))));

@@ -1,63 +1,52 @@
-/* tokens.css - 16-colour palette, type scale, spacing. Original palette, 8-bit style. */
+/* tokens.css - premium life-sim design tokens (original palette, soft glass + gloss). */
 :root {
-  /* 16 colours */
-  --c-black: #0b0b14;
-  --c-ink: #14142b;
-  --c-navy: #23235a;
-  --c-slate: #4b4b8f;
-  --c-grey: #b8b8d0;
-  --c-white: #f8f8ff;
-  --c-sky: #6ec1ff;
-  --c-blue: #3a6bff;
-  --c-purple: #9b6bff;
-  --c-pink: #ff7ab8;
-  --c-green: #3ddc84;
-  --c-lime: #b6f04a;
-  --c-yellow: #ffd23f;
-  --c-orange: #ff9142;
-  --c-red: #ff5555;
-  --c-brown: #8a5a3c;
+  --sky-top: #bfe4ff;
+  --sky-mid: #e3f4ff;
+  --sky-bottom: #fbfeff;
+  --ink: #1b2a3b;
+  --ink-dim: #52657a;
+  --panel: rgba(255, 255, 255, 0.9);
+  --panel-solid: #ffffff;
+  --line: rgba(27, 42, 59, 0.12);
 
-  /* Semantic */
-  --bg: var(--c-ink);
-  --bg-raised: var(--c-navy);
-  --text: var(--c-white);
-  --text-dim: var(--c-grey);
-  --accent: var(--c-yellow);
-  --focus: var(--c-sky);
-  --border: var(--c-white);
+  --primary: #1f6fe0;
+  --primary-hi: #4d9bff;
+  --primary-dark: #154fa8;
+  --mint: #12a37f;
+  --mint-hi: #3fd1a8;
+  --warm: #ffb547;
+  --gold: #ffd24d;
+  --rose: #ff7a8a;
+  --danger: #d93a41;
 
-  /* Risk bands: always shown with an icon and a text label, never colour alone.
-     Text on these fills is --c-black (contrast >= 7:1 on each). */
-  --risk-low: var(--c-green);
-  --risk-medium: var(--c-yellow);
-  --risk-high: var(--c-orange);
-  --risk-extreme: var(--c-red);
+  /* Risk bands: tinted fill + dark text (AA) + coloured edge. Always paired with an icon and a label. */
+  --low-bg: #d9f5e5;     --low-fg: #0b5a32;     --low-edge: #2fbf71;
+  --medium-bg: #fff1c2;  --medium-fg: #6b4a00;  --medium-edge: #f0b400;
+  --high-bg: #ffe0c7;    --high-fg: #7a3300;    --high-edge: #f58a3a;
+  --extreme-bg: #ffd6d8; --extreme-fg: #8a1117; --extreme-edge: #e5484d;
 
-  /* Type: clamp() keeps text readable from a 320 px phone to a 27" desktop. */
-  --font-pixel: "Press Start 2P", ui-monospace, "Courier New", monospace;
-  --font-body: "VT323", ui-monospace, "Segoe UI", system-ui, sans-serif;
-  --fs-body: clamp(1.25rem, 1.1rem + 0.6vw, 1.6rem); /* >= 20 px, VT323 reads small */
-  --fs-small: clamp(1.1rem, 1rem + 0.4vw, 1.3rem);
-  --fs-h1: clamp(1.1rem, 0.8rem + 2.2vw, 2.2rem);
-  --fs-h2: clamp(0.85rem, 0.7rem + 1vw, 1.3rem);
-  --fs-btn: clamp(0.7rem, 0.6rem + 0.7vw, 1rem);
+  --focus: #0b57d0;
+  --radius: 18px;
+  --radius-sm: 12px;
+  --shadow: 0 10px 30px rgba(31, 70, 120, 0.18), 0 2px 6px rgba(31, 70, 120, 0.1);
+  --shadow-sm: 0 4px 12px rgba(31, 70, 120, 0.14);
 
-  --px: 4px; /* one "pixel" for borders and shadows */
-  --gap: clamp(0.5rem, 0.3rem + 1vw, 1.25rem);
+  --font-head: "Poppins", "Nunito", system-ui, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-body: "Nunito", system-ui, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --fs-body: clamp(1.05rem, 1rem + 0.35vw, 1.3rem);
+  --fs-small: clamp(0.92rem, 0.88rem + 0.25vw, 1.08rem);
+  --fs-h1: clamp(1.7rem, 1.2rem + 2.4vw, 3rem);
+  --fs-h2: clamp(1.2rem, 1.05rem + 0.9vw, 1.7rem);
+  --fs-btn: clamp(1rem, 0.95rem + 0.4vw, 1.25rem);
+
+  --gap: clamp(0.65rem, 0.4rem + 1.1vw, 1.4rem);
   --tap: 56px; /* minimum touch target */
 }
 
-/* Large text mode */
-.large-text { --fs-body: clamp(1.6rem, 1.4rem + 0.8vw, 2rem); --fs-small: clamp(1.4rem, 1.2rem + 0.6vw, 1.7rem); --fs-btn: clamp(0.85rem, 0.7rem + 0.9vw, 1.25rem); }
+.large-text { --fs-body: clamp(1.3rem, 1.2rem + 0.6vw, 1.6rem); --fs-small: clamp(1.15rem, 1.05rem + 0.4vw, 1.35rem); --fs-btn: clamp(1.2rem, 1.1rem + 0.5vw, 1.5rem); }
 
-/* High contrast mode: pure black/white, thicker borders */
 .high-contrast {
-  --bg: #000;
-  --bg-raised: #000;
-  --text: #fff;
-  --text-dim: #fff;
-  --accent: #ffff00;
-  --focus: #00ffff;
-  --px: 6px;
+  --panel: #ffffff; --ink: #000; --ink-dim: #000; --line: #000;
+  --primary: #0036a8; --primary-hi: #0036a8; --primary-dark: #00205f; --focus: #7a0000;
+  --sky-top: #fff; --sky-mid: #fff; --sky-bottom: #fff;
 }

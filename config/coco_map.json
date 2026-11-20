@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "note": "Maps COCO-SSD fallback classes onto the hazard vocabulary used by hazard_rules.json. Classes not listed are shown as objects but do not drive rules.",
+  "map": {
+    "person": "person",
+    "chair": "chair",
+    "couch": "sofa",
+    "bed": "bed",
+    "dining table": "dining table",
+    "tv": "television",
+    "potted plant": "potted plant",
+    "oven": "oven",
+    "microwave": "microwave",
+    "toaster": "toaster",
+    "sink": "sink",
+    "refrigerator": "refrigerator",
+    "knife": "knife",
+    "scissors": "scissors",
+    "bottle": "glass bottle",
+    "wine glass": "glass bottle",
+    "vase": "vase",
+    "cat": "pet",
+    "dog": "pet",
+    "backpack": "bag on floor",
+    "handbag": "bag on floor",
+    "suitcase": "bag on floor",
+    "teddy bear": "toy",
+    "sports ball": "toy",
+    "book": "newspaper",
+    "umbrella": "clutter pile"
+  }
+}
