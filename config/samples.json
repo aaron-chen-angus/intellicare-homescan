@@ -1,0 +1,45 @@
+{
+  "version": "1.0.0",
+  "source": "FallSafe Home Scan prototype (github.com/aaron-chen-angus/fallsafe-home-scan): four HDB room photographs with hazard markers placed by the project team.",
+  "notes": "Photos load from local_base first (copy the prototype's images/ folder into assets/training/ for offline use), then from remote_base. Annotations are reference labels (x, y = marker centre in % of the photo). cls maps each prototype hazard onto config/vocabulary.json. on_floor / in_walkway restate the prototype descriptions. risk = the prototype's own rating, kept for agreement analysis. Each photo is assigned to one required shot; the bedroom photo goes to the bed-to-door path shot because hazards b1 and b2 are described as lying on the night-time path.",
+  "local_base": "assets/training/",
+  "remote_base": "https://raw.githubusercontent.com/aaron-chen-angus/fallsafe-home-scan/main/images/",
+  "samples": [
+    {
+      "room": "living", "shot": "living_entrance", "file": "living-room.jpg",
+      "annotations": [
+        { "x": 12, "y": 82, "cls": "shoes on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Shoes and slippers scattered on the floor" },
+        { "x": 42, "y": 72, "cls": "bag on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Bag left on the walking path" },
+        { "x": 50, "y": 55, "cls": "low coffee table", "on_floor": true, "in_walkway": true, "risk": "medium", "label": "Cluttered coffee table in the centre of the room" },
+        { "x": 60, "y": 60, "cls": "rug", "on_floor": true, "in_walkway": true, "risk": "low", "label": "Rug without anti-slip backing on a wooden floor" }
+      ]
+    },
+    {
+      "room": "dining", "shot": "dining_entrance", "file": "dining-room.jpg",
+      "annotations": [
+        { "x": 40, "y": 78, "cls": "newspaper", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Newspapers and loose items on the floor" },
+        { "x": 70, "y": 78, "cls": "box on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Boxes and clutter near the cabinets" },
+        { "x": 22, "y": 72, "cls": "side table", "on_floor": true, "in_walkway": true, "risk": "medium", "label": "Small storage unit in the walkway" },
+        { "x": 40, "y": 52, "cls": "chair", "on_floor": true, "in_walkway": true, "risk": "medium", "label": "Dining chair not tucked in" }
+      ]
+    },
+    {
+      "room": "kitchen", "shot": "kitchen_entrance", "file": "kitchen.jpg",
+      "annotations": [
+        { "x": 40, "y": 78, "cls": "wet floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Debris and spills on the floor tiles" },
+        { "x": 60, "y": 70, "cls": "appliance on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Appliance blocking the walkway" },
+        { "x": 20, "y": 65, "cls": "open cabinet door", "on_floor": true, "in_walkway": true, "risk": "medium", "label": "Lower cabinet left open with items exposed" },
+        { "x": 78, "y": 68, "cls": "clutter pile", "on_floor": true, "in_walkway": false, "risk": "medium", "label": "Items on the floor near the counter" }
+      ]
+    },
+    {
+      "room": "bedroom", "shot": "bedroom_bedside", "file": "bedroom.jpg",
+      "annotations": [
+        { "x": 35, "y": 75, "cls": "clothes on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Clothes and bags on the bed-to-door path" },
+        { "x": 60, "y": 80, "cls": "shoes on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Shoes and slippers beside the bed" },
+        { "x": 72, "y": 75, "cls": "clutter pile", "on_floor": true, "in_walkway": false, "risk": "medium", "label": "Items piled at the foot of the bed" },
+        { "x": 18, "y": 60, "cls": "clutter pile", "on_floor": true, "in_walkway": false, "risk": "medium", "label": "Cluttered dresser area and laundry basket" }
+      ]
+    }
+  ]
+}

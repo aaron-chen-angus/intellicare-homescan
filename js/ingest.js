@@ -10,9 +10,10 @@ import { saveShot } from './state.js';
  * Save a canvas as the photo for a shot.
  * @param {{canvas:HTMLCanvasElement, room:string, shot:object, quality:object, source:'camera'|'upload'}} p
  */
-export async function storeShot({ canvas, room, shot, quality, source }) {
+export async function storeShot({ canvas, room, shot, quality, source, extra = {} }) {
   const blob = await canvasToBlob(canvas);
   const record = {
+    ...extra,
     shot_id: shot.id,
     room,
     shot_type: shot.id,

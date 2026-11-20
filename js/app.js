@@ -9,6 +9,7 @@ import { h, announce } from './ui/components.js';
 import * as screens from './ui/screens.js';
 import { cameraScreen } from './ui/camera-screen.js';
 import { analysisScreen } from './ui/analysis-screen.js';
+import { reportScreen } from './ui/report-screen.js';
 
 const root = document.getElementById('app');
 const config = {};
@@ -47,6 +48,7 @@ function resolve(path) {
   if (first === 'room' && rooms.includes(a)) return screens.room(ctx, a);
   if (first === 'camera' && rooms.includes(a)) return cameraScreen(ctx, a, b);
   if (first === 'analyze' && rooms.includes(a)) return analysisScreen(ctx, a, b) || screens.room(ctx, a);
+  if (first === 'report') return reportScreen(ctx);
   if (first === 'help') return screens.help(ctx);
   if (first === 'settings') return screens.settings(ctx);
   return null;

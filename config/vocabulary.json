@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "note": "Baked into YOLO-World by tools/export_models.ipynb. Extend here, then re-export.",
   "groups": {
-    "trip_slip": ["rug", "floor mat", "bath mat", "doormat", "loose carpet", "electrical cable", "extension cord", "power cord on floor", "shoes on floor", "slippers", "clothes on floor", "bag on floor", "box on floor", "toy", "newspaper", "clutter pile", "pet bowl", "pet", "door threshold", "step", "stairs", "raised platform", "wet floor", "puddle"],
+    "trip_slip": ["rug", "floor mat", "bath mat", "doormat", "loose carpet", "electrical cable", "extension cord", "power cord on floor", "shoes on floor", "slippers", "clothes on floor", "bag on floor", "box on floor", "toy", "newspaper", "clutter pile", "pet bowl", "pet", "door threshold", "step", "stairs", "raised platform", "wet floor", "puddle", "appliance on floor"],
     "furniture": ["chair", "stool", "step stool", "ladder", "low coffee table", "sofa", "bed", "dining table", "side table", "cabinet", "wardrobe", "shelf", "bookshelf", "chair with wheels", "rocking chair", "glass table", "sharp-cornered table"],
     "support_aids": ["grab bar", "handrail", "walking frame", "walking stick", "wheelchair", "night light", "light switch", "lamp"],
     "electrical_fire": ["power strip", "multi-plug adaptor", "overloaded socket", "wall socket", "heater", "fan", "kettle", "stove", "gas stove", "induction cooker", "microwave", "oven", "toaster", "rice cooker", "iron", "candle", "joss stick holder", "smoke detector", "gas cylinder", "curtain", "towel"],

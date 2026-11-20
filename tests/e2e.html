@@ -59,6 +59,30 @@
     check(/1 of 3 photos/.test(roomText) || /33%/.test(roomText), 'room screen shows the shot as done (1 of 3)');
     check(/View results/.test(roomText), 'room screen offers View results for the analysed shot');
 
+    // ---- Sample home -> consolidated report ----
+    const { loadSampleHome } = await import('../js/samples.js');
+    const loadConfig = (n) => fetch(`../config/${n}.json`).then((r) => r.json());
+    const sctx = { loadConfig, config: { guides: await loadConfig('shot_guides') } };
+    try {
+      const stored = await loadSampleHome(sctx);
+      check(stored.length === 4, 'sample home: 4 prototype photos downloaded and stored');
+    } catch (e) {
+      check(false, 'sample home download failed: ' + e.message);
+    }
+    frame.src = '../index.html#/report';
+    let rep = '';
+    const t1 = performance.now();
+    while (performance.now() - t1 < 120000) {
+      await sleep(1500);
+      try { rep = frame.contentDocument.body.innerText; } catch { rep = ''; }
+      if (/Risk register/.test(rep) && /labelled hazards rated/.test(rep)) break;
+    }
+    check(/Home Safety Score/.test(rep) && /Risk register/.test(rep), 'consolidated report rendered (' + Math.round((performance.now() - t1) / 1000) + ' s)');
+    check(/16 of 16 labelled hazards rated/.test(rep), 'all 16 labelled sample hazards rated in the report');
+    check(/Hazards by room and risk level/.test(rep) && /Risk matrix/.test(rep), 'charts present (heat map, room bars)');
+    check(/Blocked/.test(rep), 'provisional clearance is Blocked (High hazards on the bed-to-door path)');
+    check(!/\bnull\b/.test(rep), 'no stray "null" text on the report');
+
     const failed = results.filter((x) => !x).length;
     document.getElementById('summary').textContent = `${results.length - failed} / ${results.length} passed, ${failed} failed`;
     // When served by tools/serve.ps1 -ReportFile, hand the report back to the terminal.

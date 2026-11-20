@@ -12,6 +12,8 @@ import { clearanceValid, bandOf } from '../risk.js';
 import { roomProgress, shotList, assignUploads, findShot } from '../shots.js';
 import { requestTiltPermission } from '../tilt.js';
 import { ingestFile } from '../ingest.js';
+import { pendingShots } from '../analyze.js';
+import { loadSampleHome } from '../samples.js';
 
 const CAST_LINES = (room) => [
   { kind: 'mei', room: 'living', x: 0.62, label: t('hs.name.mei'), line: t('hs.say.mei') },
@@ -68,6 +70,7 @@ export function title(ctx) {
         guide('nurse', started ? t('hs.say.nurse_back', { pct: prog.pct }) : t('hs.say.nurse_welcome')),
         h('div', { class: 'row' },
           h('button', { class: 'btn big pulse', onclick: () => ctx.go(getSettings().tutorialSeen ? '/map' : '/help') }, started ? t('hs.cta.continue') : t('home_scanning.start_test')),
+          started ? h('button', { class: 'btn gold', onclick: () => ctx.go('/report') }, '\uD83D\uDCCA ' + t('hs.rp.cta')) : null,
           h('button', { class: 'btn soft', onclick: () => ctx.go('/help') }, t('hs.help'))),
         h('p', { class: 'muted' }, '\uD83D\uDD12 ' + t('hs.local_note'))),
       h('section', { class: 'stack' },
@@ -96,6 +99,18 @@ function exerciseDoor(ctx) {
       h('p', { class: 'muted' }, open ? t('hs.exercise_open') : t('hs.exercise_locked')),
       open ? h('p', { class: 'muted' }, t('hs.exercise_valid_until', { date: new Date(rec.expiresAt).toLocaleDateString(getLanguage()) })) : null),
     h('span', { class: 'chip ' + (open ? status : 'info') }, t('hs.clearance.' + status)));
+}
+
+/** Entry to the consolidated report; analyses every pending photo in one go. */
+function reportCard(ctx, prog) {
+  const pending = pendingShots(ctx).length;
+  return h('section', { class: 'panel stack report-card' },
+    h('div', { class: 'row', style: 'flex-wrap:nowrap' },
+      h('div', { class: 'lock', 'aria-hidden': 'true', style: 'background:#fff1c2' }, '\uD83D\uDCCA'),
+      h('div', {},
+        h('h2', {}, t('hs.rp.title')),
+        h('p', { class: 'muted' }, prog.done ? (pending ? t('hs.rp.card_pending', { n: pending }) : t('hs.rp.card_ready')) : t('hs.rp.card_empty')))),
+    h('button', { class: 'btn gold', onclick: () => ctx.go('/report') }, pending ? t('hs.rp.cta_all', { n: pending }) : t('hs.rp.cta')));
 }
 
 export function map(ctx) {
@@ -130,7 +145,7 @@ export function map(ctx) {
         h('div', { class: 'stack' },
           buildHouse({ interactive: true, rooms, onRoom: (id) => ctx.go('/room/' + id), cast: CAST_LINES() }),
           h('p', { class: 'muted', style: 'text-align:center' }, t('hs.map.tap_room'))),
-        h('div', { class: 'stack' }, exerciseDoor(ctx), ...list))),
+        h('div', { class: 'stack' }, reportCard(ctx, prog), exerciseDoor(ctx), ...list))),
     disclaimer());
   return { title: t('hs.map_title'), node };
 }
@@ -314,6 +329,21 @@ export function settings(ctx) {
         h('label', { class: 'toggle', for: 'zone' }, h('span', {}, t('hs.exercise_zone')), zone),
         toggle('largeText', t('hs.large_text')),
         toggle('highContrast', t('hs.high_contrast'))),
+      h('section', { class: 'panel stack' },
+        h('h2', {}, t('hs.rp.samples_title')),
+        h('p', { class: 'muted' }, t('hs.rp.samples_note')),
+        h('button', { class: 'btn soft', onclick: async (e) => {
+          const btn = e.currentTarget;
+          btn.disabled = true;
+          try {
+            await loadSampleHome(ctx, (p) => { btn.textContent = `${t('hs.rp.loading_samples')} ${p.done}/${p.total}`; });
+            ctx.go('/report');
+          } catch (err) {
+            toast(t('home_scanning.error_generic', { error: err.message }), 'err');
+            btn.disabled = false;
+            btn.textContent = '\uD83E\uDDEA ' + t('hs.rp.load_samples');
+          }
+        } }, '\uD83E\uDDEA ' + t('hs.rp.load_samples'))),
       h('section', { class: 'panel stack' },
         h('h2', {}, t('hs.privacy')),
         h('p', { class: 'muted' }, isPersistent() ? t('hs.local_note') : t('hs.memory_note')),

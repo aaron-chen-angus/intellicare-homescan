@@ -9,6 +9,7 @@ import * as quality from '../js/quality.js';
 import * as tilt from '../js/tilt.js';
 import * as shots from '../js/shots.js';
 import * as scene from '../js/scene.js';
+import * as report from '../js/report.js';
 
 export async function runSuite(h, loadJson) {
   const matrix = await loadJson('config/risk_matrix.json');
@@ -19,6 +20,7 @@ export async function runSuite(h, loadJson) {
   const shotGuides = await loadJson('config/shot_guides.json');
   const thresholds = await loadJson('config/thresholds.json');
   const cocoMap = await loadJson('config/coco_map.json');
+  const samples = await loadJson('config/samples.json');
 
   // ---------- Risk matrix (all 25 cells) ----------
   // Independent oracle copied from the master prompt table, rows S5..S1, columns L1..L5.
@@ -362,6 +364,125 @@ export async function runSuite(h, loadJson) {
     });
     h.ok(!evaluateRules(facts, ruleFile, matrix).some((x) => x.rule_id === 'ELEC-WET-02'));
   });
+  // ---------- Samples, annotations, CIR estimate ----------
+  await h.test('samples: every sample targets a real shot and uses vocabulary classes', () => {
+    const vocabSet = new Set(Object.values(vocab.groups).flat());
+    h.eq(samples.samples.length, 4, 'one sample per room');
+    for (const s of samples.samples) {
+      h.ok(shotGuides.rooms[s.room].required.some((x) => x.id === s.shot), `${s.room}/${s.shot}`);
+      for (const a of s.annotations) {
+        h.ok(vocabSet.has(a.cls), `${s.file}: ${a.cls}`);
+        h.ok(['high', 'medium', 'low'].includes(a.risk), `${s.file}: risk ${a.risk}`);
+        h.ok(a.x >= 0 && a.x <= 100 && a.y >= 0 && a.y <= 100, `${s.file}: coordinates`);
+      }
+    }
+  });
+  await h.test('annotations: point marker becomes a clamped, flagged detection', () => {
+    const d = scene.annotationToDetection({ x: 98, y: 2, cls: 'rug', on_floor: true, in_walkway: false, risk: 'low', label: 'L' }, 3);
+    h.eq(d.id, 'ref3');
+    h.eq(d.verdict, 'added');
+    h.eq(d.source, 'reference');
+    h.ok(d.bbox[0] + d.bbox[2] <= 1 + 1e-9 && d.bbox[1] >= 0, 'box stays inside the frame');
+    h.eq(d.flags, { on_floor: true, in_walkway: false });
+  });
+  await h.test('scene: explicit flags override the geometric heuristic', () => {
+    const facts = scene.buildFacts({
+      room: 'living', shot: { id: 'living_entrance' }, thresholds: sth, lighting: { dark_floor_pct: 0, glare: false },
+      detections: [{ id: 'x', cls: 'bag on floor', conf: 1, bbox: [0.0, 0.1, 0.1, 0.1], verdict: 'added', flags: { on_floor: true, in_walkway: true } }],
+    });
+    h.ok(facts.detections[0].on_floor && facts.detections[0].in_walkway);
+  });
+  await h.test('scene: CIR-aligned estimate covers 1..9 monotonically', () => {
+    h.eq(scene.cirEstimate(0), 1);
+    h.eq(scene.cirEstimate(0.1), 4);
+    h.eq(scene.cirEstimate(0.9), 9);
+    h.eq(scene.cirEstimate(null), null);
+    let prev = 0;
+    for (let c = 0; c <= 1; c += 0.01) { const v = scene.cirEstimate(c); h.ok(v >= prev, `monotonic at ${c}`); prev = v; }
+  });
+  await h.test('samples end to end: all 16 labelled hazards are rated by the rules', () => {
+    let rated = 0;
+    let total = 0;
+    for (const s of samples.samples) {
+      const shot = shotGuides.rooms[s.room].required.find((x) => x.id === s.shot);
+      const dets = s.annotations.map((a, i) => scene.annotationToDetection(a, i));
+      const facts = scene.buildFacts({ room: s.room, shot, detections: dets, lighting: { dark_floor_pct: 0, glare: false }, thresholds: sth });
+      const hz = evaluateRules(facts, ruleFile, matrix);
+      for (const d of dets) { total++; if (hz.some((x) => x.det_id === d.id)) rated++; else h.ok(false, `${s.file}: ${d.label} not rated`); }
+    }
+    h.eq(`${rated}/${total}`, '16/16');
+  });
+  await h.test('samples end to end: bedroom path hazards gain +1 likelihood and block clearance', () => {
+    const s = samples.samples.find((x) => x.room === 'bedroom');
+    const shot = shotGuides.rooms.bedroom.required.find((x) => x.id === s.shot);
+    const dets = s.annotations.map((a, i) => scene.annotationToDetection(a, i));
+    const facts = scene.buildFacts({ room: 'bedroom', shot, detections: dets, lighting: { dark_floor_pct: 0, glare: false }, thresholds: sth });
+    const hz = evaluateRules(facts, ruleFile, matrix).find((x) => x.det_id === 'ref0');
+    h.eq(hz.zone, 'bed_to_toilet_path');
+    h.eq(hz.L_final, 5);
+  });
+
+  // ---------- Consolidated report ----------
+  const mkA = (shot_id, room, hazards, extra = {}) => ({ shot_id, room, hazards, detections: [], lighting: { dark_floor_pct: 10 }, scene: { clutter_index: 0.1 }, model: 'm', inference_ms: 100, ...extra });
+  const hz = (id, rating, extra = {}) => {
+    const S = extra.S || (rating >= 20 ? 5 : rating >= 12 ? 3 : 3);
+    const L = extra.L || Math.max(1, Math.min(5, Math.round(rating / S)));
+    return { hazard_id: id, rule_id: id.split(':')[0], rating, band: risk.bandOf(rating, matrix).id, S, L_final: L, L_base: L, status: 'open', controls: [{ lvl: 'E', text: 'fix' }], hazard_type: 'FALL_SAME_LEVEL', mechanism: 'm', source: 'cv', ...extra };
+  };
+  await h.test('report: detection hazards are per photo, room-level hazards counted once per room', () => {
+    const merged = report.mergeHazards([
+      mkA('s1', 'kitchen', [hz('LIGHT-DARK-01:kitchen', 12), hz('TRIP-CABLE-01:d0', 12, { det_id: 'd0' })]),
+      mkA('s2', 'kitchen', [hz('LIGHT-DARK-01:kitchen', 9), hz('TRIP-CABLE-01:d0', 12, { det_id: 'd0' })]),
+    ]);
+    h.eq(merged.length, 3, 'one dark-room hazard + two cable hazards');
+    h.eq(merged.find((x) => x.rule_id === 'LIGHT-DARK-01').rating, 12, 'keeps the higher rating');
+  });
+  await h.test('report: totals, matrix cells, score, sorting and provisional clearance', () => {
+    const analyses = [
+      mkA('bedroom_door', 'bedroom', [hz('A:d0', 15, { det_id: 'd0', S: 3, L: 5, zone: 'bed_to_toilet_path' })]),
+      mkA('kitchen_entrance', 'kitchen', [hz('B:d0', 6, { det_id: 'd0', S: 3, L: 2 }), hz('C:d1', 4, { det_id: 'd1', S: 2, L: 2, pending: true })]),
+    ];
+    const r = report.buildReport({
+      rooms: appCfg.rooms, guides: shotGuides, matrix, analyses, exerciseZone: 'living',
+      captured: (room) => new Set(analyses.filter((a) => a.room === room).map((a) => a.shot_id)),
+    });
+    h.eq(r.active.length, 2, 'pending excluded');
+    h.eq(r.byBand, { EXTREME: 0, HIGH: 1, MEDIUM: 1, LOW: 0 });
+    h.eq(r.cells[3][5], 1);
+    h.eq(r.cells[3][2], 1);
+    h.eq(r.hazards[0].rating, 15, 'sorted by rating');
+    h.eq(r.score, 100 - 10 - 4);
+    h.eq(r.provisional.status, 'BLOCKED', 'High on the bed path blocks');
+    h.eq(r.official.status, 'NOT_ISSUED', 'photos and checklists incomplete');
+    h.eq(r.coverage.shotsDone, 2);
+    h.eq(r.byRoom.bedroom.band, 'HIGH');
+    h.eq(r.byRoom.living.exercise_zone, true);
+    h.eq(r.byRoom.kitchen.cir, scene.cirEstimate(0.1));
+  });
+  await h.test('report: reference agreement and model precision proxy', () => {
+    const a = mkA('living_entrance', 'living', [hz('TRIP-RUG-01:ref0', 12, { det_id: 'ref0' })], {
+      detections: [
+        { id: 'ref0', source: 'reference', reference_risk: 'high', cls: 'rug', label: 'Rug', conf: 1 },
+        { id: 'ref1', source: 'reference', reference_risk: 'low', cls: 'toy', label: 'Toy', conf: 1 },
+        { id: 'd0', source: 'cv', conf: 0.8, verdict: 'confirmed', cls: 'chair' },
+        { id: 'd1', source: 'cv', conf: 0.6, verdict: 'rejected', cls: 'chair' },
+      ],
+    });
+    const r = report.buildReport({ rooms: appCfg.rooms, guides: shotGuides, matrix, analyses: [a], exerciseZone: 'living', captured: () => new Set(['living_entrance']) });
+    h.eq([r.reference.n, r.reference.flagged, r.reference.agree], [2, 1, 1]);
+    h.eq(r.model.precision_proxy, 50);
+    h.eq(r.model.mean_conf, 70, 'reference boxes excluded from model stats');
+    h.eq(r.sources.reference, 1);
+  });
+  await h.test('report: CSV export has a header, one row per hazard, and RFC 4180 quoting', () => {
+    const a = mkA('living_entrance', 'living', [hz('X:d0', 12, { det_id: 'd0', mechanism: 'Trip, "rug", edge' })]);
+    const r = report.buildReport({ rooms: appCfg.rooms, guides: shotGuides, matrix, analyses: [a], exerciseZone: 'living', captured: () => new Set() });
+    const lines = report.registerCsv(r).split('\r\n');
+    h.eq(lines.length, 2);
+    h.ok(lines[0].startsWith('uid,room,shot_id,rule_id'), 'header');
+    h.ok(lines[1].includes('"Trip, ""rug"", edge"'), 'quoted field');
+  });
+
   await h.test('coco map: every mapped class exists in the hazard vocabulary', () => {
     const vocabSet = new Set(Object.values(vocab.groups).flat());
     for (const [coco, cls] of Object.entries(cocoMap.map)) h.ok(vocabSet.has(cls), `${coco} -> ${cls}`);
