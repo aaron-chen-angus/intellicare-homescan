@@ -32,6 +32,26 @@ export function setSettings(patch) {
   applyVisualSettings();
 }
 
+// ---------- Session shots (in memory until the data-layer task adds IndexedDB) ----------
+const shotStore = new Map();
+
+/**
+ * Save or replace a captured shot. Shot shape follows the Shot schema (master prompt 10.3):
+ * { shot_id, room, shot_type, orientation, captured_at, quality{...}, inference_ms, image_ref } plus `blob`.
+ */
+export function saveShot(shot) {
+  shotStore.set(shot.shot_id, shot);
+}
+
+export const getShot = (id) => shotStore.get(id) || null;
+
+/** Ids of captured shots in a room (or all rooms when omitted). */
+export function capturedIds(room) {
+  const ids = new Set();
+  for (const s of shotStore.values()) if (!room || s.room === room) ids.add(s.shot_id);
+  return ids;
+}
+
 /** Reflect display preferences as classes on <html> (CSS reads these). */
 export function applyVisualSettings() {
   const root = document.documentElement;

@@ -29,7 +29,8 @@ export function tiltFromEuler(beta, gamma, screenAngle = 0) {
   const gx = Math.cos(b) * Math.sin(g);
   const gy = -Math.sin(b);
   const gz = -Math.cos(b) * Math.cos(g);
-  // Back camera looks along -z, so its elevation is asin(-gz... ) with sign: forward.z_world = gz.
+  // The back camera looks along device -z; its world-vertical component equals gz,
+  // so elevation = asin(gz) (0 level, -90 straight down).
   const pitch = Math.asin(Math.max(-1, Math.min(1, gz))) * DEG;
   // "Down" of the screen in device axes for this screen rotation.
   const dx = -Math.sin(a);

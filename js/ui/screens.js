@@ -6,6 +6,9 @@ import { h, typewriter, mascot } from './components.js';
 import { t, getLanguage, setLanguage } from '../i18n.js';
 import { getSettings, setSettings } from '../state.js';
 import { clearanceValid } from '../risk.js';
+import { capturedIds } from '../state.js';
+import { roomProgress } from '../shots.js';
+import { requestTiltPermission } from '../tilt.js';
 
 const ICONS = { bedroom: 'BED', kitchen: 'POT', dining: 'TBL', living: 'SOFA' };
 
@@ -58,13 +61,16 @@ function exerciseDoor(ctx) {
 export function map(ctx) {
   const guides = ctx.config.guides.rooms;
   const cards = ctx.config.app.rooms.map((room) => {
-    const n = guides[room].required.length;
+    const { done, total: n } = roomProgress(ctx.config.guides, room, capturedIds(room));
+    const statusText = done === 0
+      ? t('hs.room.status_todo') + ' | ' + t('hs.room.shots_needed', { n })
+      : t('hs.room.progress', { done, n });
     return h('button', { class: 'room-card', onclick: () => ctx.go('/room/' + room) },
       h('span', { class: 'icon', 'aria-hidden': 'true' }, ICONS[room]),
       h('span', { class: 'name' }, t('hs.room.' + room)),
       room === 'kitchen' ? h('span', { class: 'chip HIGH' }, '! ' + t('hs.room.kitchen_boss')) : null,
       room === getSettings().exerciseZone ? h('span', { class: 'chip secondary' }, t('hs.exercise_zone')) : null,
-      h('span', { class: 'sub' }, t('hs.room.status_todo') + ' | ' + t('hs.room.shots_needed', { n })));
+      h('span', { class: 'sub' }, statusText));
   });
   const node = h('div', { class: 'screen' },
     topbar(ctx, { back: '/' }),
@@ -81,6 +87,12 @@ export function room(ctx, roomId) {
   const guide = ctx.config.guides.rooms[roomId];
   if (!guide) return notFound(ctx);
   const isExercise = getSettings().exerciseZone === roomId;
+  const taken = capturedIds(roomId);
+  // The tilt permission prompt (iOS) must start inside the tap handler, before navigating.
+  const takeButton = (shot, label) => h('button', {
+    class: 'btn secondary',
+    onclick: () => { requestTiltPermission(); ctx.go(`/camera/${roomId}/${shot.id}`); },
+  }, label);
   const node = h('div', { class: 'screen' },
     topbar(ctx, { back: '/map' }),
     h('main', { id: 'main', class: 'screen' },
@@ -95,10 +107,20 @@ export function room(ctx, roomId) {
           h('ol', { class: 'list' },
             ...guide.required.map((s) => h('li', {},
               h('strong', {}, t(s.label)),
-              h('div', { class: 'muted' }, t('hs.must_include') + ': ' + s.include))))),
+              h('div', { class: 'muted' }, t('hs.must_include') + ': ' + s.include),
+              h('div', { class: 'row' },
+                h('span', { class: 'chip ' + (taken.has(s.id) ? 'LOW' : 'MEDIUM') }, taken.has(s.id) ? 'OK ' + t('hs.shot.done') : '? ' + t('hs.shot.todo')),
+                takeButton(s, taken.has(s.id) ? t('home_scanning.retake') : t('hs.cam.shutter'))))))),
         h('section', { class: 'pixel-box' },
           h('h2', {}, t('hs.optional_shots')),
-          h('ul', { class: 'list' }, ...guide.optional.map((o) => h('li', {}, o))))),
+          h('ul', { class: 'list' },
+            ...ctx.config.guides.rooms[roomId].optional.map((o, i) => {
+              const id = `${roomId}_opt${i + 1}`;
+              return h('li', {}, h('div', {}, o),
+                h('div', { class: 'row' },
+                  taken.has(id) ? h('span', { class: 'chip LOW' }, 'OK ' + t('hs.shot.done')) : null,
+                  takeButton({ id }, taken.has(id) ? t('home_scanning.retake') : t('hs.cam.shutter'))));
+            })))),
       disclaimer()));
   return { title: t('hs.room.' + roomId), node };
 }

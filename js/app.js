@@ -7,9 +7,11 @@ import { setLanguage, t } from './i18n.js';
 import { getSettings, applyVisualSettings } from './state.js';
 import { h, announce } from './ui/components.js';
 import * as screens from './ui/screens.js';
+import { cameraScreen } from './ui/camera-screen.js';
 
 const root = document.getElementById('app');
 const config = {};
+let cleanup = null; // teardown hook of the mounted screen
 
 /** Fetch a config JSON relative to this module (works under /<repo>/ on GitHub Pages). */
 async function loadConfig(name) {
@@ -33,10 +35,15 @@ function render() {
   if (path === '/') screen = screens.title(ctx);
   else if (first === 'map') screen = screens.map(ctx);
   else if (first === 'room' && config.app.rooms.includes(arg)) screen = screens.room(ctx, arg);
-  else if (first === 'help') screen = screens.help(ctx);
+  else if (first === 'camera' && config.app.rooms.includes(arg)) {
+    screen = cameraScreen(ctx, arg, path.split('/')[3]) || screens.notFound(ctx);
+  } else if (first === 'help') screen = screens.help(ctx);
   else if (first === 'settings') screen = screens.settings(ctx);
   else screen = screens.notFound(ctx);
 
+  // Release camera/sensors of the screen we are leaving.
+  if (cleanup) cleanup();
+  cleanup = screen.cleanup || null;
   root.replaceChildren(screen.node);
   document.title = `${screen.title} | intelliCARE Home Scan`;
   announce(screen.title);
@@ -47,8 +54,8 @@ function render() {
 
 async function boot() {
   try {
-    [config.app, config.guides, config.matrix] = await Promise.all([
-      loadConfig('app'), loadConfig('shot_guides'), loadConfig('risk_matrix'),
+    [config.app, config.guides, config.matrix, config.thresholds] = await Promise.all([
+      loadConfig('app'), loadConfig('shot_guides'), loadConfig('risk_matrix'), loadConfig('thresholds'),
     ]);
     applyVisualSettings();
     // The skip link moves focus instead of changing the hash (the hash is the router's).
