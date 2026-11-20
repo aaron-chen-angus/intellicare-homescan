@@ -204,9 +204,15 @@ export async function runSuite(h, loadJson) {
       }
     }
   });
-  await h.test('shot guides: Living Room has an Exercise Zone shot, every room has required shots', () => {
-    for (const rm of appCfg.rooms) h.ok(shotGuides.rooms[rm].required.length >= 2, rm);
-    h.ok(shotGuides.rooms.living.required.some((s) => s.exercise_zone));
+  await h.test('shot guides: three layout-agnostic corner photos per room, no fixed object positions', () => {
+    for (const rm of appCfg.rooms) {
+      const req = shotGuides.rooms[rm].required;
+      h.eq(req.map((s) => s.id), [`${rm}_1`, `${rm}_2`, `${rm}_3`], rm);
+      for (const s of req) {
+        h.eq(s.ghost, [], `${s.id} must not prescribe where objects are`);
+        h.ok(!s.cam && !s.exercise_zone && !s.path, `${s.id} carries no position-specific data`);
+      }
+    }
   });
 
   // ---------- i18n ----------
@@ -235,12 +241,10 @@ export async function runSuite(h, loadJson) {
       for (const s of room.required) {
         h.ok(keys.has(s.label), s.label);
         h.ok(keys.has(s.include), s.include);
-        for (const gs of s.ghost) h.ok(keys.has(`hs.ghost.${gs.label}`), `ghost ${gs.label}`);
-        h.ok(s.cam && typeof s.cam.a === 'number', `${s.id} needs a camera position`);
       }
       for (const o of room.optional) h.ok(keys.has(o), o);
-      for (const f of room.plan.furniture) h.ok(keys.has(`hs.ghost.${f.label}`), `plan ${f.label}`);
     }
+    h.ok(keys.has('hs.ghost.floor_line'), 'floor guide label');
     for (const rm of appCfg.rooms) h.ok(keys.has(`hs.room.${rm}`), rm);
     for (const lvl of CONTROL_ORDER) h.ok(keys.has(`hs.ctl.${lvl}`), lvl);
     for (const b of matrix.bands) h.ok(keys.has(`hs.band.${b.id}`), b.id);
@@ -306,12 +310,12 @@ export async function runSuite(h, loadJson) {
 
   // ---------- Shots ----------
   await h.test('shots: progress, next required and bulk upload assignment', () => {
-    const taken = new Set(['bedroom_door']);
+    const taken = new Set(['bedroom_1']);
     h.eq(shots.roomProgress(shotGuides, 'bedroom', taken), { done: 1, total: 3 });
-    h.eq(shots.nextRequired(shotGuides, 'bedroom', taken).id, 'bedroom_bedside');
+    h.eq(shots.nextRequired(shotGuides, 'bedroom', taken).id, 'bedroom_2');
     const plan = shots.assignUploads(shotGuides, 'bedroom', taken, ['a', 'b', 'c']);
-    h.eq(plan.map((p) => p.shotId), ['bedroom_bedside', 'bedroom_corner', 'bedroom_opt1']);
-    h.eq(shots.assignUploads(shotGuides, 'dining', new Set(), Array(20).fill('x')).length, 2 + shotGuides.rooms.dining.optional.length);
+    h.eq(plan.map((p) => p.shotId), ['bedroom_2', 'bedroom_3', 'bedroom_opt1']);
+    h.eq(shots.assignUploads(shotGuides, 'dining', new Set(), Array(20).fill('x')).length, 3 + shotGuides.rooms.dining.optional.length);
   });
 
   // ---------- Scene ----------
@@ -337,22 +341,23 @@ export async function runSuite(h, loadJson) {
   });
   await h.test('scene + rules: bag in the walkway fires TRIP-SHOES-01 end to end', () => {
     const facts = scene.buildFacts({
-      room: 'living', shot: { id: 'living_entrance' }, thresholds: sth,
+      room: 'living', shot: { id: 'living_1' }, thresholds: sth,
       lighting: { dark_floor_pct: 5, glare: false },
       detections: [{ id: 'd0', cls: 'bag on floor', conf: 0.8, bbox: [0.4, 0.7, 0.15, 0.2], verdict: null }],
     });
     h.ok(evaluateRules(facts, ruleFile, matrix).some((x) => x.rule_id === 'TRIP-SHOES-01'));
   });
-  await h.test('scene + rules: dark floor fires LIGHT-DARK-01; exercise zone object blocks the zone', () => {
-    const dark = scene.buildFacts({ room: 'kitchen', shot: { id: 'kitchen_entrance' }, thresholds: sth, lighting: { dark_floor_pct: 40, glare: false }, detections: [] });
+  await h.test('scene + rules: dark floor fires LIGHT-DARK-01; floor clutter blocks the Exercise Zone room', () => {
+    const dark = scene.buildFacts({ room: 'kitchen', shot: { id: 'kitchen_1' }, thresholds: sth, lighting: { dark_floor_pct: 40, glare: false }, detections: [] });
     h.ok(evaluateRules(dark, ruleFile, matrix).some((x) => x.rule_id === 'LIGHT-DARK-01'));
-    const zone = scene.buildFacts({
-      room: 'living', shot: { id: 'living_exercise', exercise_zone: true }, thresholds: sth, lighting: { dark_floor_pct: 0, glare: false },
-      detections: [{ id: 'd0', cls: 'chair', conf: 0.9, bbox: [0.45, 0.6, 0.1, 0.3], verdict: null }],
-    });
+    const pile = [{ id: 'd0', cls: 'clutter pile', conf: 0.9, bbox: [0.3, 0.7, 0.4, 0.28], verdict: null }];
+    const zone = scene.buildFacts({ room: 'living', shot: { id: 'living_2' }, thresholds: sth, lighting: { dark_floor_pct: 0, glare: false }, detections: pile, exerciseZone: 'living' });
+    h.ok(zone.ctx.in_exercise_zone && zone.ctx.exercise_blocked, 'zone room with floor clutter');
     const hz = evaluateRules(zone, ruleFile, matrix).find((x) => x.rule_id === 'EXERCISE-ZONE-01');
     h.ok(hz, 'zone hazard expected');
     h.eq(hz.zone, 'exercise_zone');
+    const other = scene.buildFacts({ room: 'dining', shot: { id: 'dining_1' }, thresholds: sth, lighting: { dark_floor_pct: 0, glare: false }, detections: pile, exerciseZone: 'living' });
+    h.ok(!other.ctx.in_exercise_zone && !other.ctx.exercise_blocked, 'other rooms are not the zone');
   });
   await h.test('scene: rejected detections do not count toward proximity', () => {
     const facts = scene.buildFacts({
@@ -367,9 +372,14 @@ export async function runSuite(h, loadJson) {
   // ---------- Samples, annotations, CIR estimate ----------
   await h.test('samples: every sample targets a real shot and uses vocabulary classes', () => {
     const vocabSet = new Set(Object.values(vocab.groups).flat());
-    h.eq(samples.samples.length, 4, 'one sample per room');
+    h.eq(samples.samples.length, 12, 'three samples per room');
+    for (const rm of appCfg.rooms) {
+      h.eq(samples.samples.filter((s) => s.room === rm).map((s) => s.shot).sort(), [`${rm}_1`, `${rm}_2`, `${rm}_3`], `${rm} covers all required shots`);
+    }
     for (const s of samples.samples) {
       h.ok(shotGuides.rooms[s.room].required.some((x) => x.id === s.shot), `${s.room}/${s.shot}`);
+      h.ok(Boolean(s.file) !== Boolean(s.url), `${s.shot}: exactly one of file / url`);
+      h.ok(s.credit && s.credit.author && s.credit.license && s.credit.source, `${s.shot}: attribution recorded`);
       for (const a of s.annotations) {
         h.ok(vocabSet.has(a.cls), `${s.file}: ${a.cls}`);
         h.ok(['high', 'medium', 'low'].includes(a.risk), `${s.file}: risk ${a.risk}`);
@@ -387,7 +397,7 @@ export async function runSuite(h, loadJson) {
   });
   await h.test('scene: explicit flags override the geometric heuristic', () => {
     const facts = scene.buildFacts({
-      room: 'living', shot: { id: 'living_entrance' }, thresholds: sth, lighting: { dark_floor_pct: 0, glare: false },
+      room: 'living', shot: { id: 'living_1' }, thresholds: sth, lighting: { dark_floor_pct: 0, glare: false },
       detections: [{ id: 'x', cls: 'bag on floor', conf: 1, bbox: [0.0, 0.1, 0.1, 0.1], verdict: 'added', flags: { on_floor: true, in_walkway: true } }],
     });
     h.ok(facts.detections[0].on_floor && facts.detections[0].in_walkway);
@@ -412,14 +422,17 @@ export async function runSuite(h, loadJson) {
     }
     h.eq(`${rated}/${total}`, '16/16');
   });
-  await h.test('samples end to end: bedroom path hazards gain +1 likelihood and block clearance', () => {
-    const s = samples.samples.find((x) => x.room === 'bedroom');
-    const shot = shotGuides.rooms.bedroom.required.find((x) => x.id === s.shot);
+  await h.test('samples end to end: Exercise Zone room hazards gain +1 likelihood and would block clearance', () => {
+    const s = samples.samples.find((x) => x.room === 'living' && x.annotations.length);
+    const shot = shotGuides.rooms.living.required.find((x) => x.id === s.shot);
     const dets = s.annotations.map((a, i) => scene.annotationToDetection(a, i));
-    const facts = scene.buildFacts({ room: 'bedroom', shot, detections: dets, lighting: { dark_floor_pct: 0, glare: false }, thresholds: sth });
-    const hz = evaluateRules(facts, ruleFile, matrix).find((x) => x.det_id === 'ref0');
-    h.eq(hz.zone, 'bed_to_toilet_path');
-    h.eq(hz.L_final, 5);
+    const facts = scene.buildFacts({ room: 'living', shot, detections: dets, lighting: { dark_floor_pct: 0, glare: false }, thresholds: sth, exerciseZone: 'living' });
+    const shoes = evaluateRules(facts, ruleFile, matrix).find((x) => x.det_id === 'ref0');
+    h.eq(shoes.zone, 'exercise_zone');
+    h.eq([shoes.S, shoes.L_base, shoes.L_final, shoes.rating, shoes.band], [3, 4, 5, 15, 'HIGH']);
+    const outside = scene.buildFacts({ room: 'living', shot, detections: dets, lighting: { dark_floor_pct: 0, glare: false }, thresholds: sth, exerciseZone: 'bedroom' });
+    const same = evaluateRules(outside, ruleFile, matrix).find((x) => x.det_id === 'ref0');
+    h.eq([same.zone, same.L_final, same.rating], [null, 4, 12]);
   });
 
   // ---------- Consolidated report ----------
@@ -439,8 +452,8 @@ export async function runSuite(h, loadJson) {
   });
   await h.test('report: totals, matrix cells, score, sorting and provisional clearance', () => {
     const analyses = [
-      mkA('bedroom_door', 'bedroom', [hz('A:d0', 15, { det_id: 'd0', S: 3, L: 5, zone: 'bed_to_toilet_path' })]),
-      mkA('kitchen_entrance', 'kitchen', [hz('B:d0', 6, { det_id: 'd0', S: 3, L: 2 }), hz('C:d1', 4, { det_id: 'd1', S: 2, L: 2, pending: true })]),
+      mkA('bedroom_1', 'bedroom', [hz('A:d0', 15, { det_id: 'd0', S: 3, L: 5, zone: 'bed_to_toilet_path' })]),
+      mkA('kitchen_1', 'kitchen', [hz('B:d0', 6, { det_id: 'd0', S: 3, L: 2 }), hz('C:d1', 4, { det_id: 'd1', S: 2, L: 2, pending: true })]),
     ];
     const r = report.buildReport({
       rooms: appCfg.rooms, guides: shotGuides, matrix, analyses, exerciseZone: 'living',
@@ -460,7 +473,7 @@ export async function runSuite(h, loadJson) {
     h.eq(r.byRoom.kitchen.cir, scene.cirEstimate(0.1));
   });
   await h.test('report: reference agreement and model precision proxy', () => {
-    const a = mkA('living_entrance', 'living', [hz('TRIP-RUG-01:ref0', 12, { det_id: 'ref0' })], {
+    const a = mkA('living_1', 'living', [hz('TRIP-RUG-01:ref0', 12, { det_id: 'ref0' })], {
       detections: [
         { id: 'ref0', source: 'reference', reference_risk: 'high', cls: 'rug', label: 'Rug', conf: 1 },
         { id: 'ref1', source: 'reference', reference_risk: 'low', cls: 'toy', label: 'Toy', conf: 1 },
@@ -468,14 +481,14 @@ export async function runSuite(h, loadJson) {
         { id: 'd1', source: 'cv', conf: 0.6, verdict: 'rejected', cls: 'chair' },
       ],
     });
-    const r = report.buildReport({ rooms: appCfg.rooms, guides: shotGuides, matrix, analyses: [a], exerciseZone: 'living', captured: () => new Set(['living_entrance']) });
+    const r = report.buildReport({ rooms: appCfg.rooms, guides: shotGuides, matrix, analyses: [a], exerciseZone: 'living', captured: () => new Set(['living_1']) });
     h.eq([r.reference.n, r.reference.flagged, r.reference.agree], [2, 1, 1]);
     h.eq(r.model.precision_proxy, 50);
     h.eq(r.model.mean_conf, 70, 'reference boxes excluded from model stats');
     h.eq(r.sources.reference, 1);
   });
   await h.test('report: CSV export has a header, one row per hazard, and RFC 4180 quoting', () => {
-    const a = mkA('living_entrance', 'living', [hz('X:d0', 12, { det_id: 'd0', mechanism: 'Trip, "rug", edge' })]);
+    const a = mkA('living_1', 'living', [hz('X:d0', 12, { det_id: 'd0', mechanism: 'Trip, "rug", edge' })]);
     const r = report.buildReport({ rooms: appCfg.rooms, guides: shotGuides, matrix, analyses: [a], exerciseZone: 'living', captured: () => new Set() });
     const lines = report.registerCsv(r).split('\r\n');
     h.eq(lines.length, 2);

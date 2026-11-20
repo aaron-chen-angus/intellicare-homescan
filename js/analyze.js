@@ -5,7 +5,7 @@
  *   photo -> lighting (Stage C) -> detection (Stage B, on device) + reference/manual boxes
  *         -> facts (scene.js) -> rules (rules.js) -> scored hazards -> IndexedDB
  */
-import { getShot, getAnalysis, saveAnalysis, capturedIds } from './state.js';
+import { getShot, getAnalysis, saveAnalysis, capturedIds, getSettings } from './state.js';
 import { findShot, shotList } from './shots.js';
 import { detect, loadDetector, MODEL_NAME } from './detector.js';
 import { analyzeLighting, buildFacts, clutterIndex, annotationToDetection } from './scene.js';
@@ -13,7 +13,7 @@ import { evaluateRules } from './rules.js';
 import { fitSize } from './camera.js';
 
 /** Bump when detection/rule logic changes so older stored results are recomputed. */
-export const ANALYSIS_VERSION = 2;
+export const ANALYSIS_VERSION = 3;
 
 export async function blobToCanvas(blob, maxSide = 1600) {
   const bmp = await createImageBitmap(blob);
@@ -51,9 +51,11 @@ export function analysisConfig(ctx) {
 export function rescore(ctx, analysis, cfg) {
   const shot = findShot(ctx.config.guides, analysis.room, analysis.shot_id) || { id: analysis.shot_id };
   const facts = buildFacts({
-    room: analysis.room, shot, detections: analysis.detections, lighting: analysis.lighting, thresholds: ctx.config.thresholds.scene,
+    room: analysis.room, shot, detections: analysis.detections, lighting: analysis.lighting,
+    thresholds: ctx.config.thresholds.scene, exerciseZone: getSettings().exerciseZone,
   });
   analysis.hazards = evaluateRules(facts, cfg.rules, ctx.config.matrix);
+  analysis.exercise_zone = getSettings().exerciseZone;
   analysis.scene = { clutter_index: clutterIndex(analysis.detections.filter((d) => d.verdict !== 'rejected')) };
   return analysis;
 }
@@ -61,7 +63,8 @@ export function rescore(ctx, analysis, cfg) {
 /** True when a shot has a photo but no current analysis. */
 export function needsAnalysis(shotId) {
   const a = getAnalysis(shotId);
-  return Boolean(getShot(shotId)) && (!a || a.version !== ANALYSIS_VERSION);
+  // Stale when the pipeline changed or the user moved the Exercise Zone to another room.
+  return Boolean(getShot(shotId)) && (!a || a.version !== ANALYSIS_VERSION || a.exercise_zone !== getSettings().exerciseZone);
 }
 
 /**

@@ -4,7 +4,7 @@
  */
 import { h, guide, hud, disclaimer, toast, bandChip } from './components.js';
 import { buildHouse } from './house.js';
-import { buildPlan } from './plan.js';
+import { buildCornerPlan } from './plan.js';
 import { tutorialArt } from './tutorial-art.js';
 import { t, getLanguage, setLanguage } from '../i18n.js';
 import { getSettings, setSettings, capturedIds, getShot, getAnalysis, roomAnalyses, clearAll, isPersistent } from '../state.js';
@@ -157,15 +157,15 @@ function picker(onFiles, multiple = false) {
     onchange: (e) => { const f = [...e.target.files]; e.target.value = ''; if (f.length) onFiles(f); } });
 }
 
-function shotCard(ctx, roomId, shot, index, isNext, plan) {
+function shotCard(ctx, roomId, shot, index, isNext) {
   const rec = getShot(shot.id);
   const analysis = getAnalysis(shot.id);
   const thumb = h('div', { class: 'shot-thumb' + (rec ? ' done' : '') });
   if (rec && rec.blob) {
     const url = URL.createObjectURL(rec.blob);
     thumb.append(h('img', { src: url, alt: t(shot.label), onload: () => URL.revokeObjectURL(url) }));
-  } else if (shot.cam && plan) {
-    thumb.append(buildPlan(plan, shot.cam, t('hs.shot.where') + ': ' + t(shot.label)),
+  } else if (shot.required) {
+    thumb.append(buildCornerPlan(index, t('hs.shot.where') + ': ' + t(shot.label)),
       h('span', { class: 'caption', 'aria-hidden': 'true' }, t('hs.shot.where')));
   } else {
     thumb.append(h('span', { class: 'placeholder', 'aria-hidden': 'true' }, '\uD83D\uDD0D'));
@@ -247,7 +247,7 @@ export function room(ctx, roomId) {
       h('div', { class: 'split' },
         h('section', { class: 'stack', 'aria-label': t('hs.required_shots') },
           h('h2', {}, t('hs.required_shots')),
-          ...required.map((s, i) => shotCard(ctx, roomId, s, i + 1, s.id === nextId, g.plan))),
+          ...required.map((s, i) => shotCard(ctx, roomId, s, i + 1, s.id === nextId))),
         h('aside', { class: 'stack' },
           h('section', { class: 'panel stack' },
             h('h2', {}, t('hs.room.upload_all')),
@@ -261,7 +261,7 @@ export function room(ctx, roomId) {
               : h('p', { class: 'muted' }, t('hs.an.summary_none'))),
           h('section', { class: 'stack' },
             h('h2', {}, t('hs.optional_shots')),
-            ...optional.map((s, i) => shotCard(ctx, roomId, s, i + 1, false, null)))))),
+            ...optional.map((s, i) => shotCard(ctx, roomId, s, i + 1, false)))))),
     disclaimer());
   return { title: t('hs.room.' + roomId), node };
 }

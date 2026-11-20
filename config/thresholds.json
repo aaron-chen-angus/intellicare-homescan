@@ -26,6 +26,7 @@
     "dark_zone_lum": 40,
     "glare_lum": 245,
     "clutter_index_max": 0.12,
+    "exercise_clutter_max": 0.05,
     "walkway_min_m": 0.9,
     "walkway_min_aid_m": 1.2,
     "exercise_zone_min_m": 2.0

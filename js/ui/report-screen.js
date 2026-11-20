@@ -150,6 +150,23 @@ export function reportScreen(ctx) {
     toast(t('home_scanning.image_saved'));
   }
 
+  /** Attribution for sample photos (required by their CC BY / CC BY-SA licences). */
+  function creditsPanel() {
+    const credits = [];
+    for (const room of ctx.config.app.rooms) {
+      for (const a of roomAnalyses(room)) {
+        const rec = getShot(a.shot_id);
+        if (rec && rec.sample_credit) credits.push({ room, ...rec.sample_credit });
+      }
+    }
+    if (!credits.length) return null;
+    return h('section', { class: 'panel stack' },
+      h('h2', {}, t('hs.rp.credits')),
+      h('ul', { class: 'list muted' }, ...credits.map((c) => h('li', {},
+        `${t('hs.room.' + c.room)}: ${c.author}, ${c.license}. `,
+        h('a', { href: c.source, target: '_blank', rel: 'noopener' }, c.source)))));
+  }
+
   function emptyState() {
     body.replaceChildren(
       guide('nurse', t('hs.rp.empty')),
@@ -272,6 +289,7 @@ export function reportScreen(ctx) {
       h('section', { class: 'panel stack' },
         h('h2', {}, t('hs.rp.method')),
         h('p', { class: 'muted' }, t('hs.rp.method_text'))),
+      creditsPanel(),
     ].filter(Boolean)); // replaceChildren would print a literal null as text
   }
 

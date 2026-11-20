@@ -31,14 +31,14 @@
 
     await initStore();
     await clearAll();
-    const shot = { id: 'bedroom_door', required: true };
+    const shot = { id: 'bedroom_1', required: true };
     await storeShot({ canvas: c, room: 'bedroom', shot, quality: { override: false }, source: 'upload' });
-    check(capturedIds('bedroom').has('bedroom_door'), 'photo is assigned to the "From the doorway" shot');
+    check(capturedIds('bedroom').has('bedroom_1'), 'photo is assigned to bedroom photo 1');
     const stored = await db.getAll('shots');
-    check(stored.some((s) => s.shot_id === 'bedroom_door' && s.blob && s.blob.size > 1000), 'photo is persisted in IndexedDB (survives reload)');
+    check(stored.some((s) => s.shot_id === 'bedroom_1' && s.blob && s.blob.size > 1000), 'photo is persisted in IndexedDB (survives reload)');
 
     const frame = document.getElementById('app');
-    frame.src = '../index.html#/analyze/bedroom/bedroom_door';
+    frame.src = '../index.html#/analyze/bedroom/bedroom_1';
     let text = '';
     const t0 = performance.now();
     while (performance.now() - t0 < 90000) {
@@ -51,7 +51,7 @@
     check(/night-time fall|Fall in dim areas/i.test(text), 'dark-floor rules fired (LIGHT-DARK-01 / FALL-BED-01)');
     check(/coco-ssd/.test(text), 'on-device detector ran (model name shown)');
     const analyses = await db.getAll('analyses');
-    check(analyses.some((a) => a.shot_id === 'bedroom_door' && a.hazards.length > 0), 'analysis result persisted in IndexedDB');
+    check(analyses.some((a) => a.shot_id === 'bedroom_1' && a.hazards.length > 0), 'analysis result persisted in IndexedDB');
 
     frame.src = '../index.html#/room/bedroom';
     await sleep(3000);
@@ -64,8 +64,8 @@
     const loadConfig = (n) => fetch(`../config/${n}.json`).then((r) => r.json());
     const sctx = { loadConfig, config: { guides: await loadConfig('shot_guides') } };
     try {
-      const stored = await loadSampleHome(sctx);
-      check(stored.length === 4, 'sample home: 4 prototype photos downloaded and stored');
+      const res = await loadSampleHome(sctx);
+      check(res.stored.length === 12, `sample home: ${res.stored.length}/12 photos downloaded and stored` + (res.failed.length ? ` (failed: ${res.failed.join(', ')})` : ''));
     } catch (e) {
       check(false, 'sample home download failed: ' + e.message);
     }
@@ -80,7 +80,7 @@
     check(/Home Safety Score/.test(rep) && /Risk register/.test(rep), 'consolidated report rendered (' + Math.round((performance.now() - t1) / 1000) + ' s)');
     check(/16 of 16 labelled hazards rated/.test(rep), 'all 16 labelled sample hazards rated in the report');
     check(/Hazards by room and risk level/.test(rep) && /Risk matrix/.test(rep), 'charts present (heat map, room bars)');
-    check(/Blocked/.test(rep), 'provisional clearance is Blocked (High hazards on the bed-to-door path)');
+    check(/Blocked/.test(rep), 'provisional clearance is Blocked (High hazards in the Exercise Zone room)');
     check(!/\bnull\b/.test(rep), 'no stray "null" text on the report');
 
     const failed = results.filter((x) => !x).length;

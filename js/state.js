@@ -38,10 +38,32 @@ const analyses = new Map();
 let persistent = true;
 
 /** Load stored shots and analyses. Falls back to memory-only if IndexedDB is unavailable. */
+/** Shot ids from the earlier position-specific protocol, mapped onto the three-corner protocol. */
+const LEGACY_SHOT_IDS = {
+  bedroom_door: 'bedroom_1', bedroom_bedside: 'bedroom_2', bedroom_corner: 'bedroom_3',
+  kitchen_entrance: 'kitchen_1', kitchen_stove: 'kitchen_2', kitchen_sink: 'kitchen_3',
+  dining_entrance: 'dining_1', dining_far: 'dining_2',
+  living_entrance: 'living_1', living_sofa: 'living_2', living_exercise: 'living_3',
+};
+
 export async function initStore() {
   try {
-    for (const s of await db.getAll('shots')) shots.set(s.shot_id, s);
-    for (const a of await db.getAll('analyses')) analyses.set(a.shot_id, a);
+    const stored = await db.getAll('shots');
+    for (const s of stored) {
+      const next = LEGACY_SHOT_IDS[s.shot_id];
+      if (next && !stored.some((x) => x.shot_id === next)) {
+        // Keep the photo, rename it, and let it be re-analysed under the new id.
+        const old = s.shot_id;
+        const moved = { ...s, shot_id: next, shot_type: next };
+        await db.put('shots', moved);
+        await db.del('shots', old);
+        await db.del('analyses', old);
+        shots.set(next, moved);
+      } else if (!next) {
+        shots.set(s.shot_id, s);
+      }
+    }
+    for (const a of await db.getAll('analyses')) if (shots.has(a.shot_id)) analyses.set(a.shot_id, a);
   } catch {
     persistent = false;
   }

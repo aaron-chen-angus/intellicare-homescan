@@ -1,10 +1,8 @@
 /**
- * plan.js - top-down floor plan for a shot: furniture, door, and the camera position with its
- * field-of-view cone. Data comes from config/shot_guides.json (rooms.<id>.plan and shot.cam).
- * Coordinates are in a 100 x 70 plan space.
+ * plan.js - layout-agnostic "three corners" diagram for the room mission board.
+ * Every home is different, so it shows a generic room outline with three corner
+ * viewpoints looking in, highlighting the photo the card is about. No furniture is drawn.
  */
-import { t } from '../i18n.js';
-
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs) => {
   const e = document.createElementNS(NS, tag);
@@ -13,45 +11,47 @@ const el = (tag, attrs) => {
 };
 
 /** Points of a field-of-view cone. angle in degrees, 0 = right, 90 = down. */
-export function fovCone(x, y, angle, fov = 62, len = 58) {
+export function fovCone(x, y, angle, fov = 62, len = 62) {
   const a1 = ((angle - fov / 2) * Math.PI) / 180;
   const a2 = ((angle + fov / 2) * Math.PI) / 180;
   return [[x, y], [x + Math.cos(a1) * len, y + Math.sin(a1) * len], [x + Math.cos(a2) * len, y + Math.sin(a2) * len]];
 }
 
+/** Three corners of a 100 x 70 room, each looking towards the centre. */
+export const CORNERS = [
+  { x: 8, y: 62, a: -40 },
+  { x: 92, y: 62, a: -140 },
+  { x: 92, y: 8, a: 140 },
+];
+
 /**
- * @param {{furniture:object[], door:object, zone?:object}} plan
- * @param {{x:number,y:number,a:number}|null} cam
+ * @param {number} active 1-based index of the highlighted corner (0 = none highlighted)
  * @param {string} label accessible description
  */
-export function buildPlan(plan, cam, label) {
+export function buildCornerPlan(active, label) {
   const svg = el('svg', { viewBox: '-2 -2 104 74', class: 'plan', role: 'img', 'aria-label': label });
-  const clip = el('clipPath', { id: 'pc' + Math.random().toString(36).slice(2) });
+  const clipId = 'pc' + Math.random().toString(36).slice(2);
+  const clip = el('clipPath', { id: clipId });
   clip.append(el('rect', { x: 0, y: 0, width: 100, height: 70 }));
   svg.append(clip);
-  svg.append(el('rect', { x: 0, y: 0, width: 100, height: 70, rx: 2, fill: '#fbf6ee', stroke: '#9aa9b8', 'stroke-width': 1.6 }));
-  if (plan.zone) {
-    svg.append(el('rect', { ...plan.zone, rx: 2, fill: 'rgba(255,210,77,.25)', stroke: '#e0a800', 'stroke-width': 0.8, 'stroke-dasharray': '2 1.5' }));
-  }
-  for (const f of plan.furniture) {
-    svg.append(el('rect', { x: f.x, y: f.y, width: f.w, height: f.h, rx: 1.5, fill: f.fill || '#d9e4f0', stroke: '#8fa3b8', 'stroke-width': 0.6 }));
-    const txt = el('text', { x: f.x + f.w / 2, y: f.y + f.h / 2 + 1.4, 'text-anchor': 'middle', 'font-size': 3.6, 'font-family': 'Nunito, sans-serif', 'font-weight': 700, fill: '#3b4d60' });
-    txt.textContent = t('hs.ghost.' + f.label);
-    svg.append(txt);
-  }
-  const d = plan.door;
-  svg.append(el('rect', { x: d.x, y: d.y, width: d.w, height: d.h, fill: '#ffffff', stroke: '#2fbf9a', 'stroke-width': 1 }));
-  if (cam) {
-    const g = el('g', { 'clip-path': `url(#${clip.getAttribute('id')})` });
-    g.append(el('polygon', { points: fovCone(cam.x, cam.y, cam.a).map((p) => p.join(',')).join(' '), fill: 'rgba(31,111,224,.18)', stroke: 'rgba(31,111,224,.5)', 'stroke-width': 0.6 }));
-    svg.append(g);
-    const camG = el('g', { transform: `translate(${cam.x} ${cam.y}) rotate(${cam.a})` });
-    camG.append(el('circle', { r: 4.2, fill: '#1f6fe0', stroke: '#fff', 'stroke-width': 1.2 }));
-    camG.append(el('rect', { x: 1.2, y: -1.6, width: 4.2, height: 3.2, rx: 0.8, fill: '#fff' }));
-    svg.append(camG);
-    const you = el('text', { x: Math.min(92, Math.max(8, cam.x)), y: cam.y > 60 ? cam.y - 6 : cam.y + 9, 'text-anchor': 'middle', 'font-size': 4, 'font-family': 'Poppins, sans-serif', 'font-weight': 700, fill: '#154fa8' });
-    you.textContent = t('hs.plan.you');
-    svg.append(you);
-  }
+  svg.append(el('rect', { x: 0, y: 0, width: 100, height: 70, rx: 3, fill: '#fbf6ee', stroke: '#9aa9b8', 'stroke-width': 1.6 }));
+  svg.append(el('rect', { x: 30, y: 22, width: 40, height: 26, rx: 3, fill: '#eef3f8', stroke: '#c9d6e2', 'stroke-width': 0.8, 'stroke-dasharray': '2 1.5' }));
+  const g = el('g', { 'clip-path': `url(#${clipId})` });
+  CORNERS.forEach((c, i) => {
+    const on = i + 1 === active;
+    g.append(el('polygon', {
+      points: fovCone(c.x, c.y, c.a).map((p) => p.join(',')).join(' '),
+      fill: on ? 'rgba(31,111,224,.22)' : 'rgba(120,140,160,.08)',
+      stroke: on ? 'rgba(31,111,224,.6)' : 'rgba(120,140,160,.25)', 'stroke-width': 0.6,
+    }));
+  });
+  svg.append(g);
+  CORNERS.forEach((c, i) => {
+    const on = i + 1 === active;
+    svg.append(el('circle', { cx: c.x, cy: c.y, r: on ? 5.2 : 4, fill: on ? '#1f6fe0' : '#b8c6d6', stroke: '#fff', 'stroke-width': 1.2 }));
+    const n = el('text', { x: c.x, y: c.y + 1.7, 'text-anchor': 'middle', 'font-size': 5, 'font-family': 'Poppins, sans-serif', 'font-weight': 700, fill: '#fff' });
+    n.textContent = String(i + 1);
+    svg.append(n);
+  });
   return svg;
 }

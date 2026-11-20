@@ -1,30 +1,35 @@
 {
-  "version": "1.0.0",
-  "source": "FallSafe Home Scan prototype (github.com/aaron-chen-angus/fallsafe-home-scan): four HDB room photographs with hazard markers placed by the project team.",
-  "notes": "Photos load from local_base first (copy the prototype's images/ folder into assets/training/ for offline use), then from remote_base. Annotations are reference labels (x, y = marker centre in % of the photo). cls maps each prototype hazard onto config/vocabulary.json. on_floor / in_walkway restate the prototype descriptions. risk = the prototype's own rating, kept for agreement analysis. Each photo is assigned to one required shot; the bedroom photo goes to the bed-to-door path shot because hazards b1 and b2 are described as lying on the night-time path.",
+  "version": "2.0.0",
+  "purpose": "Test and demonstration photos: three per room, one per required shot. Photo 1 of each room is from the FallSafe Home Scan prototype (project team's own HDB photos, with 16 hazards labelled by the team). Photos 2 and 3 are openly licensed images from Wikimedia Commons, including a documented compulsive-hoarding home (Bregenz series), used unmodified with attribution.",
+  "notes": "Each sample loads from 'file' (local_base first, then remote_base) or from 'url'. Annotations are reference labels: x, y = marker centre in % of the photo; cls maps onto config/vocabulary.json; on_floor / in_walkway restate the prototype descriptions; risk = the team's own rating, kept for the agreement analysis in the report. Wikimedia photos have no reference labels; they test the automatic pipeline only.",
   "local_base": "assets/training/",
   "remote_base": "https://raw.githubusercontent.com/aaron-chen-angus/fallsafe-home-scan/main/images/",
   "samples": [
     {
-      "room": "living", "shot": "living_entrance", "file": "living-room.jpg",
+      "room": "bedroom", "shot": "bedroom_1", "file": "bedroom.jpg",
+      "credit": { "author": "FallSafe Home Scan project team", "license": "Project-owned", "source": "https://github.com/aaron-chen-angus/fallsafe-home-scan" },
       "annotations": [
-        { "x": 12, "y": 82, "cls": "shoes on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Shoes and slippers scattered on the floor" },
-        { "x": 42, "y": 72, "cls": "bag on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Bag left on the walking path" },
-        { "x": 50, "y": 55, "cls": "low coffee table", "on_floor": true, "in_walkway": true, "risk": "medium", "label": "Cluttered coffee table in the centre of the room" },
-        { "x": 60, "y": 60, "cls": "rug", "on_floor": true, "in_walkway": true, "risk": "low", "label": "Rug without anti-slip backing on a wooden floor" }
+        { "x": 35, "y": 75, "cls": "clothes on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Clothes and bags on the bed-to-door path" },
+        { "x": 60, "y": 80, "cls": "shoes on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Shoes and slippers beside the bed" },
+        { "x": 72, "y": 75, "cls": "clutter pile", "on_floor": true, "in_walkway": false, "risk": "medium", "label": "Items piled at the foot of the bed" },
+        { "x": 18, "y": 60, "cls": "clutter pile", "on_floor": true, "in_walkway": false, "risk": "medium", "label": "Cluttered dresser area and laundry basket" }
       ]
     },
     {
-      "room": "dining", "shot": "dining_entrance", "file": "dining-room.jpg",
-      "annotations": [
-        { "x": 40, "y": 78, "cls": "newspaper", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Newspapers and loose items on the floor" },
-        { "x": 70, "y": 78, "cls": "box on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Boxes and clutter near the cabinets" },
-        { "x": 22, "y": 72, "cls": "side table", "on_floor": true, "in_walkway": true, "risk": "medium", "label": "Small storage unit in the walkway" },
-        { "x": 40, "y": 52, "cls": "chair", "on_floor": true, "in_walkway": true, "risk": "medium", "label": "Dining chair not tucked in" }
-      ]
+      "room": "bedroom", "shot": "bedroom_2",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Bregenz-Cluttered_interiors_%28compulsive_hoarding%29-bedroom-05ASD.jpg/1280px-Bregenz-Cluttered_interiors_%28compulsive_hoarding%29-bedroom-05ASD.jpg",
+      "credit": { "author": "Asurnipal", "license": "CC BY-SA 4.0", "source": "https://commons.wikimedia.org/wiki/File:Bregenz-Cluttered_interiors_(compulsive_hoarding)-bedroom-05ASD.jpg" },
+      "annotations": []
     },
     {
-      "room": "kitchen", "shot": "kitchen_entrance", "file": "kitchen.jpg",
+      "room": "bedroom", "shot": "bedroom_3",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Messy_Bedroom_New_Orleans_Oct_2017_-_01.jpg/1280px-Messy_Bedroom_New_Orleans_Oct_2017_-_01.jpg",
+      "credit": { "author": "Infrogmation of New Orleans", "license": "CC BY 2.0", "source": "https://commons.wikimedia.org/wiki/File:Messy_Bedroom_New_Orleans_Oct_2017_-_01.jpg" },
+      "annotations": []
+    },
+    {
+      "room": "kitchen", "shot": "kitchen_1", "file": "kitchen.jpg",
+      "credit": { "author": "FallSafe Home Scan project team", "license": "Project-owned", "source": "https://github.com/aaron-chen-angus/fallsafe-home-scan" },
       "annotations": [
         { "x": 40, "y": 78, "cls": "wet floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Debris and spills on the floor tiles" },
         { "x": 60, "y": 70, "cls": "appliance on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Appliance blocking the walkway" },
@@ -33,13 +38,60 @@
       ]
     },
     {
-      "room": "bedroom", "shot": "bedroom_bedside", "file": "bedroom.jpg",
+      "room": "kitchen", "shot": "kitchen_2",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Bregenz-Cluttered_interiors_%28compulsive_hoarding%29-kitchen-03ASD.jpg/1280px-Bregenz-Cluttered_interiors_%28compulsive_hoarding%29-kitchen-03ASD.jpg",
+      "credit": { "author": "Asurnipal", "license": "CC BY-SA 4.0", "source": "https://commons.wikimedia.org/wiki/File:Bregenz-Cluttered_interiors_(compulsive_hoarding)-kitchen-03ASD.jpg" },
+      "annotations": []
+    },
+    {
+      "room": "kitchen", "shot": "kitchen_3",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Gfp-messy-kitchen-sink.jpg/1280px-Gfp-messy-kitchen-sink.jpg",
+      "credit": { "author": "Yinan Chen (goodfreephotos.com)", "license": "Public domain", "source": "https://commons.wikimedia.org/wiki/File:Gfp-messy-kitchen-sink.jpg" },
+      "annotations": []
+    },
+    {
+      "room": "dining", "shot": "dining_1", "file": "dining-room.jpg",
+      "credit": { "author": "FallSafe Home Scan project team", "license": "Project-owned", "source": "https://github.com/aaron-chen-angus/fallsafe-home-scan" },
       "annotations": [
-        { "x": 35, "y": 75, "cls": "clothes on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Clothes and bags on the bed-to-door path" },
-        { "x": 60, "y": 80, "cls": "shoes on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Shoes and slippers beside the bed" },
-        { "x": 72, "y": 75, "cls": "clutter pile", "on_floor": true, "in_walkway": false, "risk": "medium", "label": "Items piled at the foot of the bed" },
-        { "x": 18, "y": 60, "cls": "clutter pile", "on_floor": true, "in_walkway": false, "risk": "medium", "label": "Cluttered dresser area and laundry basket" }
+        { "x": 40, "y": 78, "cls": "newspaper", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Newspapers and loose items on the floor" },
+        { "x": 70, "y": 78, "cls": "box on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Boxes and clutter near the cabinets" },
+        { "x": 22, "y": 72, "cls": "side table", "on_floor": true, "in_walkway": true, "risk": "medium", "label": "Small storage unit in the walkway" },
+        { "x": 40, "y": 52, "cls": "chair", "on_floor": true, "in_walkway": true, "risk": "medium", "label": "Dining chair not tucked in" }
       ]
+    },
+    {
+      "room": "dining", "shot": "dining_2",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Bregenz-Cluttered_interiors_%28compulsive_hoarding%29-dining_room-06ASD.jpg/1280px-Bregenz-Cluttered_interiors_%28compulsive_hoarding%29-dining_room-06ASD.jpg",
+      "credit": { "author": "Asurnipal", "license": "CC BY-SA 4.0", "source": "https://commons.wikimedia.org/wiki/File:Bregenz-Cluttered_interiors_(compulsive_hoarding)-dining_room-06ASD.jpg" },
+      "annotations": []
+    },
+    {
+      "room": "dining", "shot": "dining_3",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/b1/Mess_in_the_dining_room.jpg",
+      "credit": { "author": "maria rocio", "license": "CC BY-SA 2.0", "source": "https://commons.wikimedia.org/wiki/File:Mess_in_the_dining_room.jpg" },
+      "annotations": []
+    },
+    {
+      "room": "living", "shot": "living_1", "file": "living-room.jpg",
+      "credit": { "author": "FallSafe Home Scan project team", "license": "Project-owned", "source": "https://github.com/aaron-chen-angus/fallsafe-home-scan" },
+      "annotations": [
+        { "x": 12, "y": 82, "cls": "shoes on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Shoes and slippers scattered on the floor" },
+        { "x": 42, "y": 72, "cls": "bag on floor", "on_floor": true, "in_walkway": true, "risk": "high", "label": "Bag left on the walking path" },
+        { "x": 50, "y": 55, "cls": "low coffee table", "on_floor": true, "in_walkway": true, "risk": "medium", "label": "Cluttered coffee table in the centre of the room" },
+        { "x": 60, "y": 60, "cls": "rug", "on_floor": true, "in_walkway": true, "risk": "low", "label": "Rug without anti-slip backing on a wooden floor" }
+      ]
+    },
+    {
+      "room": "living", "shot": "living_2",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Bregenz-Cluttered_interiors_%28compulsive_hoarding%29-living_room-02ASD.jpg/1280px-Bregenz-Cluttered_interiors_%28compulsive_hoarding%29-living_room-02ASD.jpg",
+      "credit": { "author": "Asurnipal", "license": "CC BY-SA 4.0", "source": "https://commons.wikimedia.org/wiki/File:Bregenz-Cluttered_interiors_(compulsive_hoarding)-living_room-02ASD.jpg" },
+      "annotations": []
+    },
+    {
+      "room": "living", "shot": "living_3",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Hoarding_living_room.jpg/1280px-Hoarding_living_room.jpg",
+      "credit": { "author": "Shadwwulf (English Wikipedia)", "license": "CC BY 3.0", "source": "https://commons.wikimedia.org/wiki/File:Hoarding_living_room.jpg" },
+      "annotations": []
     }
   ]
 }

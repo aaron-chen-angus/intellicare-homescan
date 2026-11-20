@@ -3,83 +3,37 @@
     "hs.rule.lights", "hs.rule.people", "hs.rule.dont_tidy", "hs.rule.height",
     "hs.rule.landscape", "hs.rule.hold_still", "hs.rule.no_flash", "hs.rule.all_shots"
   ],
-  "notes": "ghost: camera overlay shapes in % of the preview (x,y,w,h). plan: top-down room plan in a 100x70 space; cam = where to stand {x,y,a} with a = view direction in degrees (0 right, 90 down, -90 up). path marks the shot that covers the bed-to-toilet path.",
+  "notes": "Every home is different, so the protocol is layout-agnostic: three photos per room, preferably from three different corners, each showing as much floor as possible. include = room-specific things worth getting into at least one photo. ghost stays empty (only the general floor-third guide line is shown on the camera).",
   "rooms": {
     "bedroom": {
-      "plan": {
-        "door": { "x": 6, "y": 68, "w": 14, "h": 2 },
-        "furniture": [
-          { "x": 45, "y": 4, "w": 36, "h": 36, "label": "bed", "fill": "#d9d2ff" },
-          { "x": 83, "y": 4, "w": 10, "h": 10, "label": "light" },
-          { "x": 2, "y": 8, "w": 12, "h": 34, "label": "wardrobe" },
-          { "x": 30, "y": 46, "w": 34, "h": 12, "label": "path", "fill": "#d9f5e5" }
-        ]
-      },
       "required": [
-        { "id": "bedroom_door", "label": "hs.shot.bedroom_door", "include": "hs.inc.bedroom_door", "cam": { "x": 13, "y": 63, "a": -40 },
-          "ghost": [ { "x": 24, "y": 38, "w": 50, "h": 30, "label": "bed" }, { "x": 3, "y": 18, "w": 9, "h": 12, "label": "switch" }, { "x": 80, "y": 14, "w": 17, "h": 52, "label": "wardrobe" }, { "x": 8, "y": 72, "w": 84, "h": 22, "label": "path", "kind": "path" } ] },
-        { "id": "bedroom_bedside", "label": "hs.shot.bedroom_bedside", "include": "hs.inc.bedroom_bedside", "path": "bed_to_toilet_path", "cam": { "x": 86, "y": 30, "a": 150 },
-          "ghost": [ { "x": 40, "y": 20, "w": 18, "h": 46, "label": "door" }, { "x": 2, "y": 50, "w": 26, "h": 38, "label": "bed" }, { "x": 32, "y": 70, "w": 36, "h": 26, "label": "path", "kind": "path" } ] },
-        { "id": "bedroom_corner", "label": "hs.shot.bedroom_corner", "include": "hs.inc.bedroom_corner", "cam": { "x": 94, "y": 64, "a": -150 },
-          "ghost": [ { "x": 68, "y": 16, "w": 28, "h": 54, "label": "wardrobe" }, { "x": 6, "y": 44, "w": 50, "h": 30, "label": "bed" } ] }
+        { "id": "bedroom_1", "label": "hs.shot.corner1", "include": "hs.inc.bedroom", "ghost": [] },
+        { "id": "bedroom_2", "label": "hs.shot.corner2", "include": "hs.inc.bedroom", "ghost": [] },
+        { "id": "bedroom_3", "label": "hs.shot.corner3", "include": "hs.inc.bedroom", "ghost": [] }
       ],
       "optional": ["hs.opt.bed_height", "hs.opt.bed_lamp", "hs.opt.wardrobe_top", "hs.opt.cords"]
     },
     "kitchen": {
-      "plan": {
-        "door": { "x": 42, "y": 68, "w": 16, "h": 2 },
-        "furniture": [
-          { "x": 6, "y": 2, "w": 78, "h": 12, "label": "cabinets" },
-          { "x": 12, "y": 14, "w": 24, "h": 10, "label": "stove", "fill": "#ffe0c7" },
-          { "x": 56, "y": 14, "w": 22, "h": 10, "label": "sink", "fill": "#d6ecff" },
-          { "x": 86, "y": 2, "w": 12, "h": 22, "label": "fridge" }
-        ]
-      },
       "required": [
-        { "id": "kitchen_entrance", "label": "hs.shot.kitchen_entrance", "include": "hs.inc.kitchen_entrance", "cam": { "x": 50, "y": 64, "a": -90 },
-          "ghost": [ { "x": 6, "y": 10, "w": 88, "h": 24, "label": "cabinets" }, { "x": 10, "y": 72, "w": 80, "h": 22, "label": "path", "kind": "path" } ] },
-        { "id": "kitchen_stove", "label": "hs.shot.kitchen_stove", "include": "hs.inc.kitchen_stove", "cam": { "x": 24, "y": 50, "a": -90 },
-          "ghost": [ { "x": 6, "y": 10, "w": 88, "h": 24, "label": "cabinets" }, { "x": 34, "y": 42, "w": 32, "h": 26, "label": "stove" } ] },
-        { "id": "kitchen_sink", "label": "hs.shot.kitchen_sink", "include": "hs.inc.kitchen_sink", "cam": { "x": 67, "y": 50, "a": -90 },
-          "ghost": [ { "x": 34, "y": 42, "w": 32, "h": 26, "label": "sink" }, { "x": 70, "y": 34, "w": 10, "h": 10, "label": "socket" } ] }
+        { "id": "kitchen_1", "label": "hs.shot.corner1", "include": "hs.inc.kitchen", "ghost": [] },
+        { "id": "kitchen_2", "label": "hs.shot.corner2", "include": "hs.inc.kitchen", "ghost": [] },
+        { "id": "kitchen_3", "label": "hs.shot.corner3", "include": "hs.inc.kitchen", "ghost": [] }
       ],
       "optional": ["hs.opt.gas", "hs.opt.counter_power", "hs.opt.sink_mat", "hs.opt.chemicals"]
     },
     "dining": {
-      "plan": {
-        "door": { "x": 0, "y": 26, "w": 2, "h": 16 },
-        "furniture": [
-          { "x": 30, "y": 24, "w": 40, "h": 20, "label": "table", "fill": "#ecd2b4" },
-          { "x": 34, "y": 15, "w": 9, "h": 7, "label": "chairs" }, { "x": 57, "y": 15, "w": 9, "h": 7, "label": "chairs" },
-          { "x": 34, "y": 46, "w": 9, "h": 7, "label": "chairs" }, { "x": 57, "y": 46, "w": 9, "h": 7, "label": "chairs" }
-        ]
-      },
       "required": [
-        { "id": "dining_entrance", "label": "hs.shot.dining_entrance", "include": "hs.inc.dining_entrance", "cam": { "x": 7, "y": 34, "a": 0 },
-          "ghost": [ { "x": 26, "y": 44, "w": 48, "h": 26, "label": "table" }, { "x": 14, "y": 56, "w": 12, "h": 22, "label": "chairs" }, { "x": 74, "y": 56, "w": 12, "h": 22, "label": "chairs" } ] },
-        { "id": "dining_far", "label": "hs.shot.dining_far", "include": "hs.inc.dining_far", "cam": { "x": 93, "y": 34, "a": 180 },
-          "ghost": [ { "x": 20, "y": 50, "w": 60, "h": 22, "label": "table" }, { "x": 42, "y": 4, "w": 16, "h": 9, "label": "light" } ] }
+        { "id": "dining_1", "label": "hs.shot.corner1", "include": "hs.inc.dining", "ghost": [] },
+        { "id": "dining_2", "label": "hs.shot.corner2", "include": "hs.inc.dining", "ghost": [] },
+        { "id": "dining_3", "label": "hs.shot.corner3", "include": "hs.inc.dining", "ghost": [] }
       ],
       "optional": ["hs.opt.chair_side", "hs.opt.glass_edges", "hs.opt.transition"]
     },
     "living": {
-      "plan": {
-        "door": { "x": 80, "y": 68, "w": 14, "h": 2 },
-        "furniture": [
-          { "x": 18, "y": 2, "w": 26, "h": 6, "label": "tv" },
-          { "x": 18, "y": 30, "w": 26, "h": 12, "label": "table", "fill": "#ecd2b4" },
-          { "x": 6, "y": 52, "w": 46, "h": 14, "label": "sofa", "fill": "#cfe0ff" },
-          { "x": 98, "y": 12, "w": 2, "h": 34, "label": "window" }
-        ],
-        "zone": { "x": 58, "y": 16, "w": 32, "h": 32 }
-      },
       "required": [
-        { "id": "living_entrance", "label": "hs.shot.living_entrance", "include": "hs.inc.living_entrance", "cam": { "x": 86, "y": 63, "a": -145 },
-          "ghost": [ { "x": 8, "y": 44, "w": 40, "h": 24, "label": "sofa" }, { "x": 62, "y": 28, "w": 30, "h": 28, "label": "tv" }, { "x": 10, "y": 74, "w": 80, "h": 20, "label": "path", "kind": "path" } ] },
-        { "id": "living_sofa", "label": "hs.shot.living_sofa", "include": "hs.inc.living_sofa", "cam": { "x": 30, "y": 48, "a": -70 },
-          "ghost": [ { "x": 30, "y": 8, "w": 40, "h": 30, "label": "window" }, { "x": 10, "y": 74, "w": 80, "h": 20, "label": "path", "kind": "path" } ] },
-        { "id": "living_exercise", "label": "hs.shot.living_exercise", "include": "hs.inc.living_exercise", "exercise_zone": true, "cam": { "x": 74, "y": 64, "a": -90 },
-          "ghost": [ { "x": 22, "y": 52, "w": 56, "h": 42, "label": "clear_zone", "kind": "zone" } ] }
+        { "id": "living_1", "label": "hs.shot.corner1", "include": "hs.inc.living", "ghost": [] },
+        { "id": "living_2", "label": "hs.shot.corner2", "include": "hs.inc.living", "ghost": [] },
+        { "id": "living_3", "label": "hs.shot.corner3", "include": "hs.inc.living", "ghost": [] }
       ],
       "optional": ["hs.opt.tv_power", "hs.opt.tall_shelves", "hs.opt.zone_floor", "hs.opt.thresholds"]
     }

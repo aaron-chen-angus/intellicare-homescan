@@ -84,7 +84,7 @@ export function clutterIndex(dets) {
  * @param {{room:string, shot:object, detections:object[], lighting:object, thresholds:object,
  *          profile?:object, checklist?:object}} input  thresholds = config thresholds.scene
  */
-export function buildFacts({ room, shot, detections, lighting, thresholds, profile = {}, checklist = {} }) {
+export function buildFacts({ room, shot, detections, lighting, thresholds, profile = {}, checklist = {}, exerciseZone = null }) {
   const live = detections.filter((d) => d.verdict !== 'rejected');
   const enriched = detections.map((d) => {
     const near = {};
@@ -105,11 +105,11 @@ export function buildFacts({ room, shot, detections, lighting, thresholds, profi
     };
   });
 
-  const zoneBlocked = Boolean(shot.exercise_zone) && live.some((d) => {
-    const b = d.bbox;
-    const cx = b[0] + b[2] / 2;
-    return onFloor(b) && cx > 0.22 && cx < 0.78 && d.cls !== 'person';
-  });
+  // The Exercise Zone is a whole room (chosen in Settings, default Living Room), because the
+  // photo protocol is layout-agnostic. Exercise needs a clear floor, so the zone counts as
+  // obstructed at a lower clutter level than the general clutter rule.
+  const inZone = Boolean(exerciseZone) && room === exerciseZone;
+  const clutter = clutterIndex(live);
 
   return {
     room,
@@ -118,10 +118,10 @@ export function buildFacts({ room, shot, detections, lighting, thresholds, profi
       glare: lighting.glare,
       dark_floor_high: lighting.dark_floor_pct >= 25,
       dark_bed_path: room === 'bedroom' && lighting.dark_floor_pct >= 25,
-      clutter_high: clutterIndex(live) > thresholds.clutter_index_max,
-      exercise_blocked: zoneBlocked,
-      in_exercise_zone: Boolean(shot.exercise_zone),
-      in_bed_path: shot.path === 'bed_to_toilet_path',
+      clutter_high: clutter > thresholds.clutter_index_max,
+      exercise_blocked: inZone && clutter > thresholds.exercise_clutter_max,
+      in_exercise_zone: inZone,
+      in_bed_path: Boolean(shot && shot.path === 'bed_to_toilet_path'),
     },
     checklist,
     profile,
