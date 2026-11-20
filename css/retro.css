@@ -1,0 +1,74 @@
+/* retro.css - 8-bit look: pixel borders, chunky buttons, CRT overlay, pixel typography. */
+h1, h2, h3, .pixel { font-family: var(--font-pixel); font-weight: normal; line-height: 1.5; letter-spacing: 0; }
+h1 { font-size: var(--fs-h1); color: var(--accent); margin: 0; text-shadow: var(--px) var(--px) 0 var(--c-black); }
+h2 { font-size: var(--fs-h2); margin: 0; }
+p { margin: 0; }
+
+/* Stepped (non-antialiased) pixel border built from box-shadows. */
+.pixel-box {
+  background: var(--bg-raised);
+  color: var(--text);
+  border: 0;
+  padding: calc(var(--gap) * 1.1);
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--border),
+    0 var(--px) 0 0 var(--border),
+    calc(var(--px) * -1) 0 0 0 var(--border),
+    var(--px) 0 0 0 var(--border),
+    calc(var(--px) * 2) calc(var(--px) * 2) 0 0 var(--c-black);
+  margin: var(--px);
+}
+
+/* Chunky 3D press button */
+.btn {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-btn);
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0.9rem 1.2rem;
+  color: var(--c-black);
+  background: var(--accent);
+  border: 0;
+  cursor: pointer;
+  text-transform: uppercase;
+  box-shadow:
+    inset calc(var(--px) * -1) calc(var(--px) * -1) 0 0 rgba(0, 0, 0, 0.35),
+    inset var(--px) var(--px) 0 0 rgba(255, 255, 255, 0.5),
+    0 var(--px) 0 0 var(--c-black),
+    var(--px) 0 0 0 var(--c-black),
+    calc(var(--px) * -1) 0 0 0 var(--c-black),
+    0 calc(var(--px) * -1) 0 0 var(--c-black);
+  transition: transform 60ms steps(2);
+  touch-action: manipulation;
+}
+.btn:active { transform: translateY(var(--px)); box-shadow: inset var(--px) var(--px) 0 0 rgba(0, 0, 0, 0.35), 0 0 0 var(--px) var(--c-black); }
+.btn.secondary { background: var(--c-sky); }
+.btn.ghost { background: var(--c-grey); }
+.btn[disabled], .btn[aria-disabled="true"] { background: var(--c-slate); color: var(--c-grey); cursor: not-allowed; }
+
+:focus-visible { outline: calc(var(--px) + 2px) solid var(--focus); outline-offset: 3px; }
+
+/* Typewriter text: the full text is in the DOM from the start (screen readers read it at once). */
+.typewriter { white-space: pre-wrap; }
+.typewriter .cursor { display: inline-block; width: 0.6em; height: 1em; background: var(--text); vertical-align: -0.1em; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Title screen */
+.blink { animation: blink 1.2s steps(2) infinite; }
+.mascot { width: min(40vw, 12rem); height: auto; image-rendering: pixelated; }
+
+/* CRT scanline overlay (opt-in; disabled for reduced motion) */
+.crt body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.18) 0, rgba(0, 0, 0, 0.18) 1px, transparent 1px, transparent 3px);
+  z-index: 50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crt body::after { display: none; }
+  .blink, .typewriter .cursor { animation: none; }
+  .btn { transition: none; }
+}

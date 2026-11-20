@@ -1,0 +1,56 @@
+{
+  "version": "1.0.0",
+  "method": "ISO 31000:2018 / ISO 45001, mapped to Singapore WSH Council CoP on Risk Management 3x3",
+  "severity": [
+    { "s": 1, "level": "Negligible", "descriptor": "No injury / discomfort only" },
+    { "s": 2, "level": "Minor", "descriptor": "Bruise, minor cut; first aid at home" },
+    { "s": 3, "level": "Moderate", "descriptor": "Sprain, laceration needing clinic visit; temporary loss of mobility" },
+    { "s": 4, "level": "Major", "descriptor": "Fracture, head injury, burns; hospital admission; lasting loss of independence" },
+    { "s": 5, "level": "Catastrophic", "descriptor": "Life-threatening injury, long lie, death; permanent disability" }
+  ],
+  "likelihood": [
+    { "l": 1, "level": "Rare", "descriptor": "Only in exceptional circumstances" },
+    { "l": 2, "level": "Unlikely", "descriptor": "Could occur at some time (about yearly)" },
+    { "l": 3, "level": "Possible", "descriptor": "Might occur (about monthly exposure)" },
+    { "l": 4, "level": "Likely", "descriptor": "Will probably occur (daily exposure)" },
+    { "l": 5, "level": "Almost certain", "descriptor": "Expected to occur" }
+  ],
+  "bands": [
+    { "id": "LOW", "min": 1, "max": 4, "color": "green", "icon": "OK", "action": "Acceptable, monitor", "due_days": null },
+    { "id": "MEDIUM", "min": 5, "max": 9, "color": "yellow", "icon": "!", "action": "Fix within 2 weeks", "due_days": 14 },
+    { "id": "HIGH", "min": 10, "max": 16, "color": "orange", "icon": "!!", "action": "Fix before exercising in that room", "due_days": 3 },
+    { "id": "EXTREME", "min": 20, "max": 25, "color": "red", "icon": "X", "action": "Stop. Fix immediately and notify caregiver", "due_days": 0 }
+  ],
+  "score_weights": { "EXTREME": 25, "HIGH": 10, "MEDIUM": 4, "LOW": 1 },
+  "hearts": { "start": 5, "EXTREME": 2, "HIGH": 1 },
+  "likelihood_modifiers": {
+    "prior_fall": 1,
+    "aid_or_vision": 1,
+    "critical_path": 1,
+    "verified_control": -1,
+    "min": 1,
+    "max": 5,
+    "low_confidence_below": 0.4
+  },
+  "wsh": {
+    "severity_map": { "1": 1, "2": 1, "3": 2, "4": 3, "5": 3 },
+    "likelihood_map": { "1": 1, "2": 1, "3": 2, "4": 3, "5": 3 },
+    "severity_labels": ["Minor", "Moderate", "Major"],
+    "likelihood_labels": ["Remote", "Occasional", "Frequent"],
+    "bands": [
+      { "id": "LOW", "min": 1, "max": 2 },
+      { "id": "MEDIUM", "min": 3, "max": 4 },
+      { "id": "HIGH", "min": 6, "max": 9 }
+    ]
+  },
+  "clearance": {
+    "validity_days": 7,
+    "blocked_if_extreme": true,
+    "blocked_if_high_in": ["exercise_zone", "bed_to_toilet_path"]
+  },
+  "hazard_types": [
+    "FALL_SAME_LEVEL", "FALL_FROM_HEIGHT", "IMPACT_STRUCK_BY", "IMPACT_STRUCK_AGAINST",
+    "ENTANGLEMENT_STRANGULATION", "ELECTRICAL", "FIRE_BURN_SCALD", "CHEMICAL",
+    "LIGHTING_VISIBILITY", "ERGONOMIC_REACH", "EMERGENCY_ACCESS"
+  ]
+}

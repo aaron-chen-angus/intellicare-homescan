@@ -1,0 +1,15 @@
+{
+  "name": "intelliCARE Home Scan",
+  "short_name": "Home Scan",
+  "description": "Find home hazards before you exercise.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14142b",
+  "theme_color": "#14142b",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

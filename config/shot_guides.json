@@ -1,0 +1,43 @@
+{
+  "universal_rules": [
+    "hs.rule.lights", "hs.rule.people", "hs.rule.dont_tidy", "hs.rule.height",
+    "hs.rule.landscape", "hs.rule.hold_still", "hs.rule.no_flash", "hs.rule.all_shots"
+  ],
+  "rooms": {
+    "bedroom": {
+      "icon": "BED",
+      "required": [
+        { "id": "bedroom_door", "label": "hs.shot.bedroom_door", "include": "Whole bed, both sides of floor, bed-to-door path, light switch" },
+        { "id": "bedroom_bedside", "label": "hs.shot.bedroom_bedside", "include": "Night-time exit path, bedside table, rugs, cables near bed" },
+        { "id": "bedroom_corner", "label": "hs.shot.bedroom_corner", "include": "Wardrobe base, floor, any rugs" }
+      ],
+      "optional": ["Bed height side-on", "Bedside lamp / night light", "Wardrobe top shelves", "Curtain / blind cords"]
+    },
+    "kitchen": {
+      "icon": "POT",
+      "required": [
+        { "id": "kitchen_entrance", "label": "hs.shot.kitchen_entrance", "include": "Full floor, upper cabinets, any stool or ladder" },
+        { "id": "kitchen_stove", "label": "hs.shot.kitchen_stove", "include": "Stove and surroundings, curtains, towels" },
+        { "id": "kitchen_sink", "label": "hs.shot.kitchen_sink", "include": "Sink, nearby sockets, floor mat" }
+      ],
+      "optional": ["Gas cylinder / hose", "Power points on counter", "Floor mat by sink", "Cleaning chemicals storage"]
+    },
+    "dining": {
+      "icon": "TBL",
+      "required": [
+        { "id": "dining_entrance", "label": "hs.shot.dining_entrance", "include": "Table, all chairs, floor around table, walkway to kitchen" },
+        { "id": "dining_far", "label": "hs.shot.dining_far", "include": "Chair spacing, overhead light, any cables" }
+      ],
+      "optional": ["Chair stability (side view)", "Glass table edges", "Floor transition to kitchen"]
+    },
+    "living": {
+      "icon": "SOFA",
+      "required": [
+        { "id": "living_entrance", "label": "hs.shot.living_entrance", "include": "Sofa, coffee table, rugs, TV area and cables, walkways" },
+        { "id": "living_sofa", "label": "hs.shot.living_sofa", "include": "Windows, fan or heater, walkways" },
+        { "id": "living_exercise", "label": "hs.shot.living_exercise", "include": "At least 2 m x 2 m clear floor area", "exercise_zone": true }
+      ],
+      "optional": ["Power strips behind TV", "Tall shelves", "Floor around exercise zone", "Door thresholds / balcony step"]
+    }
+  }
+}

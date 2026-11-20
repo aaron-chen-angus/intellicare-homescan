@@ -1,0 +1,63 @@
+/* tokens.css - 16-colour palette, type scale, spacing. Original palette, 8-bit style. */
+:root {
+  /* 16 colours */
+  --c-black: #0b0b14;
+  --c-ink: #14142b;
+  --c-navy: #23235a;
+  --c-slate: #4b4b8f;
+  --c-grey: #b8b8d0;
+  --c-white: #f8f8ff;
+  --c-sky: #6ec1ff;
+  --c-blue: #3a6bff;
+  --c-purple: #9b6bff;
+  --c-pink: #ff7ab8;
+  --c-green: #3ddc84;
+  --c-lime: #b6f04a;
+  --c-yellow: #ffd23f;
+  --c-orange: #ff9142;
+  --c-red: #ff5555;
+  --c-brown: #8a5a3c;
+
+  /* Semantic */
+  --bg: var(--c-ink);
+  --bg-raised: var(--c-navy);
+  --text: var(--c-white);
+  --text-dim: var(--c-grey);
+  --accent: var(--c-yellow);
+  --focus: var(--c-sky);
+  --border: var(--c-white);
+
+  /* Risk bands: always shown with an icon and a text label, never colour alone.
+     Text on these fills is --c-black (contrast >= 7:1 on each). */
+  --risk-low: var(--c-green);
+  --risk-medium: var(--c-yellow);
+  --risk-high: var(--c-orange);
+  --risk-extreme: var(--c-red);
+
+  /* Type: clamp() keeps text readable from a 320 px phone to a 27" desktop. */
+  --font-pixel: "Press Start 2P", ui-monospace, "Courier New", monospace;
+  --font-body: "VT323", ui-monospace, "Segoe UI", system-ui, sans-serif;
+  --fs-body: clamp(1.25rem, 1.1rem + 0.6vw, 1.6rem); /* >= 20 px, VT323 reads small */
+  --fs-small: clamp(1.1rem, 1rem + 0.4vw, 1.3rem);
+  --fs-h1: clamp(1.1rem, 0.8rem + 2.2vw, 2.2rem);
+  --fs-h2: clamp(0.85rem, 0.7rem + 1vw, 1.3rem);
+  --fs-btn: clamp(0.7rem, 0.6rem + 0.7vw, 1rem);
+
+  --px: 4px; /* one "pixel" for borders and shadows */
+  --gap: clamp(0.5rem, 0.3rem + 1vw, 1.25rem);
+  --tap: 56px; /* minimum touch target */
+}
+
+/* Large text mode */
+.large-text { --fs-body: clamp(1.6rem, 1.4rem + 0.8vw, 2rem); --fs-small: clamp(1.4rem, 1.2rem + 0.6vw, 1.7rem); --fs-btn: clamp(0.85rem, 0.7rem + 0.9vw, 1.25rem); }
+
+/* High contrast mode: pure black/white, thicker borders */
+.high-contrast {
+  --bg: #000;
+  --bg-raised: #000;
+  --text: #fff;
+  --text-dim: #fff;
+  --accent: #ffff00;
+  --focus: #00ffff;
+  --px: 6px;
+}

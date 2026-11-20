@@ -1,0 +1,71 @@
+/* components.css - cards, chips, bars, toggles. Risk colours always travel with an icon and a label. */
+
+.room-card {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+  text-align: center;
+  min-height: 11rem;
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  border: 0;
+  background: var(--bg-raised);
+  padding: var(--gap);
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--border), 0 var(--px) 0 0 var(--border),
+    calc(var(--px) * -1) 0 0 0 var(--border), var(--px) 0 0 0 var(--border),
+    calc(var(--px) * 2) calc(var(--px) * 2) 0 0 var(--c-black);
+  margin: var(--px);
+  max-width: calc(100% - var(--px) * 2);
+}
+.room-card:hover { background: var(--c-slate); }
+.room-card .icon { font-family: var(--font-pixel); font-size: clamp(1.2rem, 1rem + 1.5vw, 2rem); color: var(--accent); }
+.room-card .name { font-family: var(--font-pixel); font-size: var(--fs-h2); }
+.room-card .sub { color: var(--text-dim); font-size: var(--fs-small); }
+
+.door { display: flex; align-items: center; gap: var(--gap); }
+.door .lock { font-family: var(--font-pixel); font-size: 1.5rem; }
+.door.open { background: var(--c-green); color: var(--c-black); }
+
+/* Status chip: colour + icon + text */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+  color: var(--c-black);
+  background: var(--c-grey);
+  box-shadow: 0 0 0 var(--px) var(--c-black);
+  margin: var(--px);
+}
+.chip.LOW, .chip.CLEARED { background: var(--risk-low); }
+.chip.MEDIUM, .chip.CLEARED_WITH_ADVISORY { background: var(--risk-medium); }
+.chip.HIGH { background: var(--risk-high); }
+.chip.EXTREME, .chip.BLOCKED { background: var(--risk-extreme); }
+
+/* Lists in dialogs */
+.list { margin: 0; padding-left: 1.5rem; display: grid; gap: 0.6rem; }
+.list li::marker { color: var(--accent); }
+.muted { color: var(--text-dim); font-size: var(--fs-small); }
+
+/* Settings toggles: a real checkbox with a large pixel switch */
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--gap); min-height: var(--tap); }
+.toggle input { width: var(--tap); height: calc(var(--tap) * 0.6); accent-color: var(--accent); }
+select, .select {
+  font: inherit; font-size: var(--fs-body); min-height: var(--tap);
+  color: var(--text); background: var(--c-black); border: var(--px) solid var(--border); padding: 0 0.75rem;
+}
+
+/* HP hearts and XP bar (values wired in the gamification task) */
+.hearts { display: inline-flex; gap: 0.25rem; font-family: var(--font-pixel); }
+.bar { height: 1.25rem; background: var(--c-black); box-shadow: 0 0 0 var(--px) var(--border); }
+.bar > span { display: block; height: 100%; background: var(--c-green); }
+
+.row { display: flex; flex-wrap: wrap; gap: var(--gap); align-items: center; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: var(--gap); top: var(--gap); z-index: 100; }

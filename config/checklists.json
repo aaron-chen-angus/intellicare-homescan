@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "sources": ["CDC STEADI Check for Safety", "HSSAT", "Westmead Home Safety Assessment", "HOME FAST", "HDB EASE"],
+  "items": [
+    { "id": "all_switch_entrance", "rooms": ["all"], "text": "hs.cl.all_switch_entrance", "bad_answer": "no" },
+    { "id": "all_floor_nonslip_wet", "rooms": ["all"], "text": "hs.cl.all_floor_nonslip_wet", "bad_answer": "no" },
+    { "id": "all_loose_tiles", "rooms": ["all"], "text": "hs.cl.all_loose_tiles", "bad_answer": "yes" },
+    { "id": "all_phone_reachable", "rooms": ["all"], "text": "hs.cl.all_phone_reachable", "bad_answer": "no" },
+    { "id": "bed_night_light", "rooms": ["bedroom"], "text": "hs.cl.bed_night_light", "bad_answer": "no" },
+    { "id": "bed_lamp_reach", "rooms": ["bedroom"], "text": "hs.cl.bed_lamp_reach", "bad_answer": "no" },
+    { "id": "bed_height_ok", "rooms": ["bedroom"], "text": "hs.cl.bed_height_ok", "bad_answer": "no" },
+    { "id": "bed_grab_bar", "rooms": ["bedroom"], "text": "hs.cl.bed_grab_bar", "bad_answer": "no" },
+    { "id": "bed_under_clutter", "rooms": ["bedroom"], "text": "hs.cl.bed_under_clutter", "bad_answer": "yes" },
+    { "id": "kit_items_reach", "rooms": ["kitchen"], "text": "hs.cl.kit_items_reach", "bad_answer": "no" },
+    { "id": "kit_climb", "rooms": ["kitchen"], "text": "hs.cl.kit_climb", "bad_answer": "yes" },
+    { "id": "kit_detector", "rooms": ["kitchen"], "text": "hs.cl.kit_detector", "bad_answer": "no" },
+    { "id": "kit_gas_checked", "rooms": ["kitchen"], "text": "hs.cl.kit_gas_checked", "bad_answer": "no" },
+    { "id": "kit_antislip_mat", "rooms": ["kitchen"], "text": "hs.cl.kit_antislip_mat", "bad_answer": "no" },
+    { "id": "din_chairs_stable", "rooms": ["dining"], "text": "hs.cl.din_chairs_stable", "bad_answer": "no" },
+    { "id": "din_table_stable", "rooms": ["dining"], "text": "hs.cl.din_table_stable", "bad_answer": "no" },
+    { "id": "din_floor_level", "rooms": ["dining"], "text": "hs.cl.din_floor_level", "bad_answer": "no" },
+    { "id": "liv_cables_wall", "rooms": ["living"], "text": "hs.cl.liv_cables_wall", "bad_answer": "no" },
+    { "id": "liv_rugs_secured", "rooms": ["living"], "text": "hs.cl.liv_rugs_secured", "bad_answer": "no" },
+    { "id": "liv_sofa_height", "rooms": ["living"], "text": "hs.cl.liv_sofa_height", "bad_answer": "no" },
+    { "id": "liv_windows_secure", "rooms": ["living"], "text": "hs.cl.liv_windows_secure", "bad_answer": "no" }
+  ]
+}

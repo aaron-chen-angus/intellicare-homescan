@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>intelliCARE Home Scan - tests</title>
+  <style>
+    body { font: 16px/1.4 system-ui, sans-serif; margin: 1rem; background: #111; color: #eee; }
+    h1 { font-size: 1.2rem; }
+    #summary { padding: .6rem 1rem; border-radius: 4px; font-weight: bold; margin-bottom: 1rem; }
+    .pass { background: #145a32; } .fail { background: #7b241c; }
+    li { margin: .2rem 0; } li.f { color: #ff8a80; } li.p { color: #a5d6a7; }
+    pre { margin: .2rem 0 .6rem 1rem; color: #ffcdd2; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>intelliCARE Home Scan - unit tests</h1>
+  <div id="summary">Running...</div>
+  <ul id="list"></ul>
+  <script type="module">
+    import { createHarness } from './harness.js';
+    import { runSuite } from './suite.js';
+
+    // Load config relative to the repo root (this page lives in /tests/).
+    const loadJson = async (p) => {
+      const res = await fetch(new URL('../' + p, import.meta.url));
+      if (!res.ok) throw new Error(`Cannot load ${p}: ${res.status}`);
+      return res.json();
+    };
+
+    const h = createHarness();
+    await runSuite(h, loadJson);
+    const s = h.summary();
+    const box = document.getElementById('summary');
+    box.textContent = `${s.passed} / ${s.total} passed, ${s.failed} failed`;
+    box.className = s.failed ? 'fail' : 'pass';
+    const list = document.getElementById('list');
+    for (const r of h.results) {
+      const li = document.createElement('li');
+      li.className = r.failures.length ? 'f' : 'p';
+      li.textContent = `${r.failures.length ? 'FAIL' : 'PASS'}  ${r.name}`;
+      if (r.failures.length) {
+        const pre = document.createElement('pre');
+        pre.textContent = r.failures.join('\n');
+        li.appendChild(pre);
+      }
+      list.appendChild(li);
+    }
+  </script>
+</body>
+</html>

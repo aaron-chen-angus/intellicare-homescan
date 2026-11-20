@@ -1,0 +1,33 @@
+{
+  "quality": {
+    "interval_ms": 250,
+    "brightness_min": 60,
+    "brightness_max": 230,
+    "blur_var_min": 100,
+    "blur_frame_px": 320,
+    "roll_max_deg": 8,
+    "pitch_min_deg": -25,
+    "pitch_max_deg": 10,
+    "floor_pct_min": 35,
+    "hold_still_ms": 2000
+  },
+  "detector": {
+    "input_size": 640,
+    "nms_iou": 0.45,
+    "default_conf": 0.35,
+    "per_class_conf": {
+      "electrical cable": 0.25,
+      "extension cord": 0.25,
+      "rug": 0.3,
+      "person": 0.5
+    }
+  },
+  "scene": {
+    "dark_zone_lum": 40,
+    "glare_lum": 245,
+    "clutter_index_max": 0.12,
+    "walkway_min_m": 0.9,
+    "walkway_min_aid_m": 1.2,
+    "exercise_zone_min_m": 2.0
+  }
+}

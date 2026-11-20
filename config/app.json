@@ -1,0 +1,13 @@
+{
+  "app_name": "intelliCARE Home Scan",
+  "schema_version": 1,
+  "consent_version": "1.0",
+  "clearance_storage_key": "intellicare.homeScan.clearance",
+  "sync_endpoint": "",
+  "admin_pin": "2468",
+  "default_exercise_zone": "living",
+  "rooms": ["bedroom", "kitchen", "dining", "living"],
+  "default_language": "en",
+  "languages": ["en", "zh", "ms", "ta"],
+  "referral_text": "Consider a home assessment by an occupational therapist or a home-modification service such as HDB EASE."
+}
